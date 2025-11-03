@@ -1,3 +1,3 @@
 # zi-panel
 
-```bash <(curl -fsSL https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/khaingudp.sh)```
+``bash <(curl -fsSL https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/khaingudp.sh)``
