@@ -1,6 +1,6 @@
 #!/bin/bash
 # ZIVPN UDP Server + Web UI (Myanmar/English) - ENHANCED ENTERPRISE EDITION
-# Author: မောင်သုည (Modified by AI)
+# Author: မောင်သုည
 # Features: Complete Enterprise Management System with Enhanced UX, Auto-Cleanup, and Security Fixes
 set -euo pipefail
 
@@ -9,11 +9,13 @@ B="\e[1;34m"; G="\e[1;32m"; Y="\e[1;33m"; R="\e[1;31m"; C="\e[1;36m"; M="\e[1;35
 LINE="${B}────────────────────────────────────────────────────────${Z}"
 say(){ echo -e "$1"; }
 
-echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI - ENHANCED ENTERPRISE EDITION ${Z}\n$LINE"
+echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI မောင်သုည ${Z}\n$LINE"
 
-# ===== Root check & apt guards =====
-if [ "$(id -u)" -ne 0 ]; then
-  echo -e "${R} script root accept (sudo -i)${Z}"; exit 1
+# ===== Root check & apt guards (unchanged structure) =====
+if [ "$(id -u)" -ne 0 ];
+then
+  echo -e "${R} script root accept (sudo -i)${Z}";
+  exit 1
 fi
 export DEBIAN_FRONTEND=noninteractive
 
@@ -35,14 +37,14 @@ pgrep -x unattended-upgrade >/dev/null; then
 }
 
 apt_guard_start(){
-  wait_for_apt
-  CNF_CONF="/etc/apt/apt.conf.d/50command-not-found"
-  if [ -f "$CNF_CONF" ]; then mv "$CNF_CONF" "${CNF_CONF}.disabled"; CNF_DISABLED=1; else CNF_DISABLED=0; fi
+  wait_for_apt
+  CNF_CONF="/etc/apt/apt.conf.d/50command-not-found"
+  if [ -f "$CNF_CONF" ]; then mv "$CNF_CONF" "${CNF_CONF}.disabled"; CNF_DISABLED=1; else CNF_DISABLED=0; fi
 }
 apt_guard_end(){
-  dpkg --configure -a >/dev/null 2>&1 || true
-  apt-get -f install -y >/dev/null 2>&1 || true
-  if [ "${CNF_DISABLED:-0}" = "1" ] && [ -f "${CNF_CONF}.disabled" ]; then mv "${CNF_CONF}.disabled" "$CNF_CONF"; fi
+  dpkg --configure -a >/dev/null 2>&1 || true
+  apt-get -f install -y >/dev/null 2>&1 || true
+  if [ "${CNF_DISABLED:-0}" = "1" ] && [ -f "${CNF_CONF}.disabled" ]; then mv "${CNF_CONF}.disabled" "$CNF_CONF"; fi
 }
 
 # ===== Enhanced Packages =====
