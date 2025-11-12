@@ -2,14 +2,18 @@
 """
 ZIVPN Telegram Bot - GitHub Version
 Downloaded from: https://github.com/nyeinkokoaung404/zi-panel/main/telegram/bot.py
+Refactored to use telegram.ext.Application for modern async support.
+Added dotenv support to load environment variables from /etc/zivpn/web.env.
+Added a robust error handler to prevent runtime errors during polling conflicts.
 """
 
 import telegram
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Application, CommandHandler
 import sqlite3
 import logging
 import os
 from datetime import datetime
+from dotenv import load_dotenv
 
 # Configure logging
 logging.basicConfig(
@@ -18,9 +22,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# --- Environment Setup ---
+
+# Load environment variables from the specified file before accessing them.
+try:
+    load_dotenv(dotenv_path="/etc/zivpn/web.env")
+    logger.info("✅ Environment variables loaded from /etc/zivpn/web.env")
+except Exception as e:
+    logger.error(f"❌ Failed to load environment file: {e}")
+
+
 # Configuration
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+
+# --- Utility Functions ---
 
 def get_db():
     """Get database connection"""
@@ -37,6 +53,8 @@ def format_bytes(size):
         size /= power
         n += 1
     return f"{size:.2f} {power_labels[n]}B"
+
+# --- Command Handlers ---
 
 def start(update, context):
     """Send welcome message"""
@@ -65,7 +83,7 @@ def help_command(update, context):
 *Bot Commands:*
 
 📊 /stats - Show server statistics
-👥 /users - List all VPN users
+👥 / users - List all VPN users
 🔍 /myinfo <username> - Get detailed user information
 🆘 /help - Show this help message
 
@@ -143,18 +161,17 @@ def users_command(update, context):
             return
 
         users_text = "👥 *Recent Users (Last 20)*\n\n"
-        users_text_my = "👥 *နောက်ဆုံးအသုံးပြုသူများ (၂၀ ယောက်)*\n\n"
 
         for user in users:
             status_icon = "🟢" if user['status'] == 'active' else "🔴"
             bandwidth = format_bytes(user['bandwidth_used'] or 0)
             
             users_text += f"{status_icon} *{user['username']}*\n"
-            users_text += f"   Status: {user['status']}\n"
-            users_text += f"   Bandwidth: {bandwidth}\n"
-            users_text += f"   Connections: {user['concurrent_conn']}\n"
+            users_text += f"    Status: {user['status']}\n"
+            users_text += f"    Bandwidth: {bandwidth}\n"
+            users_text += f"    Connections: {user['concurrent_conn']}\n"
             if user['expires']:
-                users_text += f"   Expires: {user['expires']}\n"
+                users_text += f"    Expires: {user['expires']}\n"
             users_text += "\n"
 
         # Send the message
@@ -177,7 +194,7 @@ def myinfo_command(update, context):
     try:
         user = db.execute('''
             SELECT username, status, expires, bandwidth_used, bandwidth_limit,
-                   speed_limit_up, concurrent_conn, created_at
+                    speed_limit_up, concurrent_conn, created_at
             FROM users WHERE username = ?
         ''', (username,)).fetchone()
 
@@ -227,34 +244,46 @@ def myinfo_command(update, context):
         db.close()
 
 def error_handler(update, context):
-    """Log errors"""
-    logger.warning('Update "%s" caused error "%s"', update, context.error)
+    """Log errors. Handle cases where update might be None (common with polling conflicts)."""
+    if update:
+        # Standard error logging for valid updates
+        logger.warning('Update "%s" caused error "%s"', update, context.error)
+    else:
+        # Log when update is None, which happens during polling conflicts/timeouts
+        logger.warning('Polling error occurred (Update is None): "%s"', context.error)
+
 
 def main():
-    """Start the bot"""
+    """Start the bot using the modern Application pattern."""
+    global BOT_TOKEN
+    
+    # Re-read the token after loading dotenv
     if not BOT_TOKEN:
-        logger.error("❌ TELEGRAM_BOT_TOKEN not set in environment variables")
+        BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+
+    if not BOT_TOKEN:
+        logger.error("❌ TELEGRAM_BOT_TOKEN not set in environment variables or /etc/zivpn/web.env")
         return
 
     try:
-        # Create updater and dispatcher
-        updater = Updater(BOT_TOKEN, use_context=True)
-        dp = updater.dispatcher
+        # Create Application instance using the builder pattern
+        application = Application.builder().token(BOT_TOKEN).build()
 
         # Add command handlers
-        dp.add_handler(CommandHandler("start", start))
-        dp.add_handler(CommandHandler("help", help_command))
-        dp.add_handler(CommandHandler("stats", stats_command))
-        dp.add_handler(CommandHandler("users", users_command))
-        dp.add_handler(CommandHandler("myinfo", myinfo_command))
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("help", help_command))
+        application.add_handler(CommandHandler("stats", stats_command))
+        application.add_handler(CommandHandler("users", users_command))
+        application.add_handler(CommandHandler("myinfo", myinfo_command))
 
         # Add error handler
-        dp.add_error_handler(error_handler)
+        application.add_error_handler(error_handler)
 
         # Start the bot
         logger.info("🤖 ZIVPN Telegram Bot Started Successfully")
-        updater.start_polling()
-        updater.idle()
+        
+        # We increase the poll_interval slightly to reduce the stress on the Telegram API
+        application.run_polling(poll_interval=1.0) 
 
     except Exception as e:
         logger.error(f"Failed to start bot: {e}")
