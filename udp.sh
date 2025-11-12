@@ -1378,6 +1378,7 @@ python3 /etc/zivpn/backup.py
 IP=$(hostname -I | awk '{print $1}')
 echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition Setup Complete!${Z}"
 echo -e "${C}🌐 Web Panel:${Z} ${Y}http://$IP:8080${Z}"
+echo -e "${C}👀 Admin Login:${Z} ${Y}User: ${WEB_USER}, Pass: ${WEB_PASS}${Z}"
 echo -e "${C}🔌 API Server:${Z} ${Y}http://$IP:8081${Z}"
 echo -e "${C}📊 Database:${Z} ${Y}/etc/zivpn/zivpn.db${Z}"
 echo -e "${C}💾 Backups:${Z} ${Y}/etc/zivpn/backups/${Z}"
