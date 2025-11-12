@@ -9,7 +9,7 @@ B="\e[1;34m"; G="\e[1;32m"; Y="\e[1;33m"; R="\e[1;31m"; C="\e[1;36m"; M="\e[1;35
 LINE="${B}────────────────────────────────────────────────────────${Z}"
 say(){ echo -e "$1"; }
 
-echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI - ENTERPRISE EDITION ${Z}\n${M}✨ Fixing systemd Timer Configuration ${Z}\n$LINE"
+echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI - ENTERPRISE EDITION - V2${Z}\n${M}✨ Fixing systemd Timer Configuration ${Z}\n$LINE"
 
 # ===== Root check & apt guards =====
 if [ "$(id -u)" -ne 0 ]; then
