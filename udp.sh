@@ -1135,14 +1135,14 @@ ExecStart=/usr/bin/python3 /etc/zivpn/cleanup.py
 WantedBy=multi-user.target
 EOF
 
+# Cleanup Timer (Daily) - FIX APPLIED HERE
 cat >/etc/systemd/system/zivpn-cleanup.timer <<'EOF'
 [Unit]
 Description=Daily ZIVPN Cleanup Timer
 Requires=zivpn-cleanup.service
 
 [Timer]
-# FIXED: Changed invalid OnCalendar format to the simple and reliable time of day.
-OnCalendar=00:00:00 
+OnCalendar=daily
 Persistent=true
 
 [Install]
