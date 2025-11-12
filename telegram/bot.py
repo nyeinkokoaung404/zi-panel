@@ -2,9 +2,6 @@
 """
 ZIVPN Telegram Bot - GitHub Version
 Downloaded from: https://github.com/nyeinkokoaung404/zi-panel/main/telegram/bot.py
-Refactored to use telegram.ext.Application for modern async support.
-Added dotenv support to load environment variables from /etc/zivpn/web.env.
-Added a robust error handler to prevent runtime errors during polling conflicts.
 """
 
 import telegram
@@ -29,6 +26,7 @@ try:
     load_dotenv(dotenv_path="/etc/zivpn/web.env")
     logger.info("✅ Environment variables loaded from /etc/zivpn/web.env")
 except Exception as e:
+    # If file load fails, we proceed, but BOT_TOKEN might be missing later
     logger.error(f"❌ Failed to load environment file: {e}")
 
 
@@ -36,7 +34,7 @@ except Exception as e:
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
-# --- Utility Functions ---
+# --- Utility Functions (These can remain sync as they don't block I/O) ---
 
 def get_db():
     """Get database connection"""
@@ -54,9 +52,9 @@ def format_bytes(size):
         n += 1
     return f"{size:.2f} {power_labels[n]}B"
 
-# --- Command Handlers ---
+# --- Command Handlers (Converted to async def) ---
 
-def start(update, context):
+async def start(update, context):
     """Send welcome message"""
     welcome_text = """
 🤖 *ZIVPN Management Bot*
@@ -75,9 +73,9 @@ def start(update, context):
 /myinfo <username> - အသုံးပြုသူအချက်အလက်ရယူရန်
 /help - အကူအညီစာကိုပြပါ
     """
-    update.message.reply_text(welcome_text, parse_mode='Markdown')
+    await update.message.reply_text(welcome_text, parse_mode='Markdown')
 
-def help_command(update, context):
+async def help_command(update, context):
     """Show help message"""
     help_text = """
 *Bot Commands:*
@@ -94,13 +92,13 @@ def help_command(update, context):
 🔍 /myinfo <username> - အသုံးပြုသူအသေးစိတ်အချက်အလက်ရယူရန်
 🆘 /help - အကူအညီစာကိုကြည့်ရန်
     """
-    update.message.reply_text(help_text, parse_mode='Markdown')
+    await update.message.reply_text(help_text, parse_mode='Markdown')
 
-def stats_command(update, context):
+async def stats_command(update, context):
     """Show server statistics"""
     db = get_db()
     try:
-        # Get total statistics
+        # Get total statistics (Database calls are sync and fast, so we don't await)
         stats = db.execute('''
             SELECT 
                 COUNT(*) as total_users,
@@ -137,15 +135,15 @@ def stats_command(update, context):
 📦 စုစုပေါင်း Bandwidth: *{format_bytes(total_bandwidth)}*
         """
 
-        update.message.reply_text(stats_text, parse_mode='Markdown')
+        await update.message.reply_text(stats_text, parse_mode='Markdown') # Await I/O call
 
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
-        update.message.reply_text("❌ Error retrieving statistics")
+        await update.message.reply_text("❌ Error retrieving statistics") # Await I/O call
     finally:
         db.close()
 
-def users_command(update, context):
+async def users_command(update, context):
     """List all users"""
     db = get_db()
     try:
@@ -157,7 +155,7 @@ def users_command(update, context):
         ''').fetchall()
 
         if not users:
-            update.message.reply_text("📭 No users found")
+            await update.message.reply_text("📭 No users found") # Await I/O call
             return
 
         users_text = "👥 *Recent Users (Last 20)*\n\n"
@@ -175,18 +173,18 @@ def users_command(update, context):
             users_text += "\n"
 
         # Send the message
-        update.message.reply_text(users_text, parse_mode='Markdown')
+        await update.message.reply_text(users_text, parse_mode='Markdown') # Await I/O call
 
     except Exception as e:
         logger.error(f"Error getting users: {e}")
-        update.message.reply_text("❌ Error retrieving users list")
+        await update.message.reply_text("❌ Error retrieving users list") # Await I/O call
     finally:
         db.close()
 
-def myinfo_command(update, context):
+async def myinfo_command(update, context):
     """Get user information"""
     if not context.args:
-        update.message.reply_text("Usage: /myinfo <username>\nအသုံးပြုနည်း: /myinfo <username>")
+        await update.message.reply_text("Usage: /myinfo <username>\nအသုံးပြုနည်း: /myinfo <username>") # Await I/O call
         return
 
     username = context.args[0]
@@ -199,7 +197,7 @@ def myinfo_command(update, context):
         ''', (username,)).fetchone()
 
         if not user:
-            update.message.reply_text(f"❌ User '{username}' not found")
+            await update.message.reply_text(f"❌ User '{username}' not found") # Await I/O call
             return
 
         # Calculate days remaining if expiration date exists
@@ -235,21 +233,19 @@ def myinfo_command(update, context):
 📅 စတင်သည့်ရက်: *{user['created_at'][:10] if user['created_at'] else 'မသိပါ'}*
         """
 
-        update.message.reply_text(user_text, parse_mode='Markdown')
+        await update.message.reply_text(user_text, parse_mode='Markdown') # Await I/O call
 
     except Exception as e:
         logger.error(f"Error getting user info: {e}")
-        update.message.reply_text("❌ Error retrieving user information")
+        await update.message.reply_text("❌ Error retrieving user information") # Await I/O call
     finally:
         db.close()
 
-def error_handler(update, context):
-    """Log errors. Handle cases where update might be None (common with polling conflicts)."""
+async def error_handler(update, context):
+    """Log errors. MUST be async in PTB v20+."""
     if update:
-        # Standard error logging for valid updates
         logger.warning('Update "%s" caused error "%s"', update, context.error)
     else:
-        # Log when update is None, which happens during polling conflicts/timeouts
         logger.warning('Polling error occurred (Update is None): "%s"', context.error)
 
 
@@ -282,7 +278,6 @@ def main():
         # Start the bot
         logger.info("🤖 ZIVPN Telegram Bot Started Successfully")
         
-        # We increase the poll_interval slightly to reduce the stress on the Telegram API
         application.run_polling(poll_interval=1.0) 
 
     except Exception as e:
