@@ -1,6 +1,6 @@
 #!/bin/bash
 # ZIVPN UDP Server + Web UI (Myanmar) - ENTERPRISE EDITION
-# Author: မောင်သုည
+# Author: 4 0 4 \ 2.0 [🇲🇲]
 # Features: Complete Enterprise Management System with Bandwidth Control, Billing, Multi-Server, API, etc.
 set -euo pipefail
 
@@ -189,7 +189,7 @@ fi
 chmod 600 "$ENVF"
 
 # ===== Ask initial VPN passwords =====
-say "${G}🔏 VPN Password List (eg: khaing,alice,pass1)${Z}"
+say "${G}🔏 VPN Password List (eg: channel404,alice,pass1)${Z}"
 read -r -p "Passwords (Enter=zi): " input_pw
 if [ -z "${input_pw:-}" ]; then
   PW_LIST='["zi"]'
@@ -238,7 +238,7 @@ LOGO_URL = "https://raw.githubusercontent.com/BaeGyee9/khaing/main/logo.png"
 
 HTML = """<!doctype html>
 <html lang="my"><head><meta charset="utf-8">
-<title>မောင်သုည ZIVPN Enterprise Panel</title>
+<title>Channel 404 ZIVPN Enterprise Panel</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="120">
 <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
@@ -371,12 +371,12 @@ tr.expired .muted{color:#ddd;}
   <div class="header-left">
     <img src="{{ logo }}" alt="မောင်သုည" class="logo">
     <div>
-      <h1><span class="colorful-title">မောင်သုည ZIVPN Enterprise</span></h1>
+      <h1><span class="colorful-title">Channel 404 ZIVPN Enterprise</span></h1>
       <div class="sub"><span class="colorful-title" style="font-size:1em;font-weight:700;animation-duration:12s;">⊱✫⊰ Enterprise Management System ⊱✫⊰</span></div>
     </div>
   </div>
   <div style="display:flex;gap:10px;align-items:center">
-    <a class="btn contact" href="https://t.me/Zero_Free_Vpn" target="_blank" rel="noopener">
+    <a class="btn contact" href="https://t.me/nkka404" target="_blank" rel="noopener">
       <i class="fab fa-telegram-plane"></i>Contact
     </a>
     <a class="btn logout" href="/logout">
@@ -1095,7 +1095,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DATABASE_PATH = "/etc/zivpn/zivpn.db"
-BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE')
+BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8079105459:AAFNww6keJvnGJi4DpAHZGESBcL9ytFxqA4')
 
 def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
@@ -1175,7 +1175,7 @@ def get_user_info(update, context):
     update.message.reply_text(message)
 
 def main():
-    if BOT_TOKEN == 'YOUR_BOT_TOKEN_HERE':
+    if BOT_TOKEN == '8079105459:AAFNww6keJvnGJi4DpAHZGESBcL9ytFxqA4':
         logger.error("Please set TELEGRAM_BOT_TOKEN environment variable")
         return
     
