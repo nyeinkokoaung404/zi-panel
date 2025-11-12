@@ -1,8 +1,7 @@
 #!/bin/bash
-# ZIVPN UDP Server + Web UI (Myanmar) - ENTERPRISE EDITION
-# Author: 4 0 4 \ 2.0 [🇲🇲]
-# Features: Complete Enterprise Management System with Bandwidth Control, Billing, Multi-Server, API, etc.
-# FIX APPLIED: Enhanced status checking in web.py to correctly detect Online/Offline state via conntrack.
+# ZIVPN UDP Server + Web UI (Myanmar) - ENTERPRISE EDITION 2.0
+# Author: 4 0 4 \ 2.0 [🇲🇲] - Enhanced by Gemini
+# Features: Complete Enterprise Management System with Bandwidth Control, Billing, Multi-Server, API, Auto-Suspend, UI/UX, Dark/Light Mode, Language Support (EN/MY).
 set -euo pipefail
 
 # ===== Pretty =====
@@ -10,7 +9,7 @@ B="\e[1;34m"; G="\e[1;32m"; Y="\e[1;33m"; R="\e[1;31m"; C="\e[1;36m"; M="\e[1;35
 LINE="${B}────────────────────────────────────────────────────────${Z}"
 say(){ echo -e "$1"; }
 
-echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI - ENTERPRISE EDITION ${Z}\n$LINE"
+echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI - ENTERPRISE EDITION 2.0 ${Z}\n$LINE"
 
 # ===== Root check & apt guards =====
 if [ "$(id -u)" -ne 0 ]; then
@@ -43,7 +42,7 @@ apt_guard_end(){
 }
 
 # ===== Enhanced Packages =====
-say "${Y}📦 Enhanced Packages တင်နေပါတ်...${Z}"
+say "${Y}📦 Enhanced Packages တင်နေပါတယ်...${Z}"
 apt_guard_start
 apt-get update -y -o APT::Update::Post-Invoke-Success::= -o APT::Update::Post-Invoke::= >/dev/null
 apt-get install -y curl ufw jq python3 python3-flask python3-pip python3-venv iproute2 conntrack ca-certificates sqlite3 >/dev/null || \
@@ -61,6 +60,7 @@ systemctl stop zivpn.service 2>/dev/null || true
 systemctl stop zivpn-web.service 2>/dev/null || true
 systemctl stop zivpn-api.service 2>/dev/null || true
 systemctl stop zivpn-bot.service 2>/dev/null || true
+systemctl stop zivpn-cleanup.service 2>/dev/null || true # Stop new service if exists
 
 # ===== Paths =====
 BIN="/usr/local/bin/zivpn"
@@ -222,8 +222,8 @@ fi
 [ -f "$USERS" ] || echo "[]" > "$USERS"
 chmod 644 "$CFG" "$USERS"
 
-# ===== Enhanced Web Panel (FIXED) =====
-say "${Y}🖥️ Enhanced Web Panel ထည့်သွင်းနေပါတယ် (Status Fix ပါဝင်သည်)...${Z}"
+# ===== Enhanced Web Panel (web.py) =====
+say "${Y}🖥️ Enhanced Web Panel ထည့်သွင်းနေပါတယ်...${Z}"
 cat >/etc/zivpn/web.py <<'PY'
 from flask import Flask, jsonify, render_template_string, request, redirect, url_for, session, make_response
 import json, re, subprocess, os, tempfile, hmac, sqlite3, datetime
@@ -234,33 +234,172 @@ USERS_FILE = "/etc/zivpn/users.json"
 CONFIG_FILE = "/etc/zivpn/config.json"
 DATABASE_PATH = "/etc/zivpn/zivpn.db"
 LISTEN_FALLBACK = "5667"
-RECENT_SECONDS = 120
 LOGO_URL = "https://raw.githubusercontent.com/BaeGyee9/khaing/main/logo.png"
 
+# --- Translations ---
+LANGUAGES = {
+    'en': {
+        'title': 'Channel 404 ZIVPN Enterprise Panel',
+        'subtitle': 'Enterprise Management System',
+        'login': 'Login',
+        'login_err': 'Invalid username or password',
+        'logout': 'Logout',
+        'contact': 'Contact',
+        'total_users': 'Total Users',
+        'active_users': 'Active Users',
+        'bandwidth_used': 'Bandwidth Used',
+        'server_load': 'Server Load',
+        'user_management': 'User Management',
+        'add_new_user': 'Add New User',
+        'bulk_operations': 'Bulk Operations',
+        'reports': 'Reports',
+        'save_user': 'Save User',
+        'user_label': 'User',
+        'password_label': 'Password',
+        'expires_label': 'Expires',
+        'port_label': 'Port',
+        'speed_limit_label': 'Speed Limit (MB/s)',
+        'bandwidth_limit_label': 'Bandwidth Limit (GB)',
+        'max_conn_label': 'Max Connections',
+        'plan_type_label': 'Plan Type',
+        'unlimited': 'unlimited',
+        'search_users': 'Search users...',
+        'online': 'ONLINE',
+        'offline': 'OFFLINE',
+        'expired': 'EXPIRED',
+        'suspended': 'SUSPENDED',
+        'unknown': 'UNKNOWN',
+        'delete_confirm': 'Are you sure you want to delete {}?',
+        'user_pass_required': 'User and Password are required',
+        'expires_invalid': 'Expires format is invalid',
+        'port_range_invalid': 'Port range must be 6000-19999',
+        'deleted_msg': 'Deleted: {}',
+        'saved_msg': 'User saved successfully',
+        'select_action': 'Select Action',
+        'extend_expiry': 'Extend Expiry (+7 days)',
+        'suspend_users': 'Suspend Users',
+        'activate_users': 'Activate Users',
+        'delete_users': 'Delete Users',
+        'usernames_placeholder': 'Usernames comma separated (user1,user2)',
+        'execute': 'Execute',
+        'export_csv': 'Export Users CSV',
+        'import_users': 'Import Users',
+        'from_date': 'From Date',
+        'to_date': 'To Date',
+        'report_type': 'Report Type',
+        'generate_report': 'Generate Report',
+        'bandwidth_usage': 'Bandwidth Usage',
+        'user_activity': 'User Activity',
+        'revenue': 'Revenue',
+        'actions': 'Actions',
+        'update_user': 'Update User',
+        'user_updated': 'User updated',
+    },
+    'my': {
+        'title': 'ချန်နယ် 404 ZIVPN Enterprise Panel',
+        'subtitle': 'လုပ်ငန်းသုံး စီမံခန့်ခွဲမှုစနစ်',
+        'login': 'ဝင်ရောက်ပါ',
+        'login_err': 'အသုံးပြုသူအမည် သို့မဟုတ် လျှို့ဝှက်နံပါတ် မမှန်ပါ',
+        'logout': 'ထွက်ရန်',
+        'contact': 'ဆက်သွယ်ရန်',
+        'total_users': 'အသုံးပြုသူ စုစုပေါင်း',
+        'active_users': 'အွန်လိုင်းရှိသူ',
+        'bandwidth_used': 'သုံးစွဲပြီး Bandwidth',
+        'server_load': 'ဆာဗာ ဝန်ပမာဏ',
+        'user_management': 'အသုံးပြုသူ စီမံခန့်ခွဲမှု',
+        'add_new_user': 'အသုံးပြုသူ အသစ်ထည့်ပါ',
+        'bulk_operations': 'အစုလိုက် လုပ်ဆောင်ချက်များ',
+        'reports': 'အစီရင်ခံစာများ',
+        'save_user': 'အသုံးပြုသူ သိမ်းဆည်းမည်',
+        'user_label': 'အသုံးပြုသူ',
+        'password_label': 'လျှို့ဝှက်နံပါတ်',
+        'expires_label': 'သက်တမ်းကုန်ဆုံး',
+        'port_label': 'Port',
+        'speed_limit_label': 'အမြန်နှုန်း ကန့်သတ် (MB/s)',
+        'bandwidth_limit_label': 'Bandwidth ကန့်သတ် (GB)',
+        'max_conn_label': 'ချိတ်ဆက်မှု အများဆုံး',
+        'plan_type_label': 'အစီအစဉ် အမျိုးအစား',
+        'unlimited': 'ကန့်သတ်မထားပါ',
+        'search_users': 'အသုံးပြုသူ ရှာဖွေပါ...',
+        'online': 'အွန်လိုင်း',
+        'offline': 'အော့ဖ်လိုင်း',
+        'expired': 'သက်တမ်းကုန်',
+        'suspended': 'ယာယီရပ်ဆိုင်း',
+        'unknown': 'မသိရှိရ',
+        'delete_confirm': '{} ကို ဖျက်မလား?',
+        'user_pass_required': 'အသုံးပြုသူအမည်နှင့် လျှို့ဝှက်နံပါတ် လိုအပ်သည်',
+        'expires_invalid': 'သက်တမ်းကုန်ဆုံးရက် format မမှန်ပါ',
+        'port_range_invalid': 'Port အကွာအဝေး 6000-19999 အတွင်း ဖြစ်ရမည်',
+        'deleted_msg': 'ဖျက်လိုက်ပါပြီ: {}',
+        'saved_msg': 'အသုံးပြုသူကို အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ',
+        'select_action': 'လုပ်ဆောင်ချက် ရွေးချယ်ပါ',
+        'extend_expiry': 'သက်တမ်းတိုးမည် (+၇ ရက်)',
+        'suspend_users': 'ယာယီရပ်ဆိုင်းမည်',
+        'activate_users': 'ပြန်လည်စတင်မည်',
+        'delete_users': 'အပြီးတိုင်ဖျက်မည်',
+        'usernames_placeholder': 'အသုံးပြုသူအမည်များ ကော်မာခြားပြီး ထည့်ပါ (user1,user2)',
+        'execute': 'လုပ်ဆောင်မည်',
+        'export_csv': 'အသုံးပြုသူစာရင်း CSV ထုတ်ယူမည်',
+        'import_users': 'အသုံးပြုသူစာရင်း ထည့်သွင်းမည်',
+        'from_date': 'မှစတင်ရက်',
+        'to_date': 'အထိရက်',
+        'report_type': 'အစီရင်ခံစာ အမျိုးအစား',
+        'generate_report': 'အစီရင်ခံစာ ထုတ်ယူမည်',
+        'bandwidth_usage': 'Bandwidth သုံးစွဲမှု',
+        'user_activity': 'အသုံးပြုသူ လှုပ်ရှားမှု',
+        'revenue': 'ဝင်ငွေ',
+        'actions': 'လုပ်ဆောင်ချက်များ',
+        'update_user': 'အသုံးပြုသူ ပြင်ဆင်ရန်',
+        'user_updated': 'အသုံးပြုသူကို ပြင်ဆင်ပြီးပါပြီ',
+    }
+}
+
 HTML = """<!doctype html>
-<html lang="my"><head><meta charset="utf-8">
-<title>Channel 404 ZIVPN Enterprise Panel</title>
+<html lang="{{ lang }}"><head><meta charset="utf-8">
+<title>{{ t.title }}</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="120">
 <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
 :root{
-  --bg: #1e1e1e; --fg: #f0f0f0; --card: #2d2d2d; --bd: #444;
-  --header-bg: #2d2d2d; --ok: #27ae60; --bad: #c0392b; --unknown: #f39c12;
-  --expired: #8e44ad; --info: #3498db; --success: #1abc9c; --delete-btn: #e74c3c;
-  --primary-btn: #3498db; --logout-btn: #e67e22; --telegram-btn: #0088cc;
-  --input-text: #fff; --shadow: 0 4px 15px rgba(0,0,0,0.5); --radius: 8px;
-  --user-icon: #f1c40f; --pass-icon: #e74c3c; --expires-icon: #9b59b6; --port-icon: #3498db;
+  --bg-dark: #121212; --fg-dark: #e0e0e0; --card-dark: #1e1e1e; --bd-dark: #333;
+  --header-bg-dark: #1e1e1e; --ok-dark: #2ecc71; --bad-dark: #e74c3c; --unknown-dark: #f39c12;
+  --expired-dark: #9b59b6; --info-dark: #3498db; --success-dark: #1abc9c; --delete-btn-dark: #e74c3c;
+  --primary-btn-dark: #3498db; --logout-btn-dark: #e67e22; --telegram-btn-dark: #0088cc;
+  --input-text-dark: #fff; --shadow-dark: 0 4px 15px rgba(0,0,0,0.7); --radius: 8px;
+  --user-icon-dark: #f1c40f; --pass-icon-dark: #e74c3c; --expires-icon-dark: #9b59b6; --port-icon-dark: #3498db;
+
+  --bg-light: #f4f4f4; --fg-light: #333; --card-light: #ffffff; --bd-light: #ccc;
+  --header-bg-light: #ffffff; --ok-light: #27ae60; --bad-light: #c0392b; --unknown-light: #d35400;
+  --expired-light: #8e44ad; --info-light: #3498db; --success-light: #16a085; --delete-btn-light: #c0392b;
+  --primary-btn-light: #3498db; --logout-btn-light: #f39c12; --telegram-btn-light: #0088cc;
+  --input-text-light: #333; --shadow-light: 0 2px 10px rgba(0,0,0,0.1);
+
+  /* Default to Dark Mode */
+  --bg: var(--bg-dark); --fg: var(--fg-dark); --card: var(--card-dark); --bd: var(--bd-dark);
+  --header-bg: var(--header-bg-dark); --ok: var(--ok-dark); --bad: var(--bad-dark); --unknown: var(--unknown-dark);
+  --expired: var(--expired-dark); --info: var(--info-dark); --success: var(--success-dark); --delete-btn: var(--delete-btn-dark);
+  --primary-btn: var(--primary-btn-dark); --logout-btn: var(--logout-btn-dark); --telegram-btn: var(--telegram-btn-dark);
+  --input-text: var(--input-text-dark); --shadow: var(--shadow-dark);
+  --user-icon: var(--user-icon-dark); --pass-icon: var(--pass-icon-dark); --expires-icon: var(--expires-icon-dark); --port-icon: var(--port-icon-dark);
 }
-html,body{background:var(--bg);color:var(--fg);font-family:'Padauk',sans-serif;line-height:1.6;margin:0;padding:10px}
+.light-mode {
+  --bg: var(--bg-light); --fg: var(--fg-light); --card: var(--card-light); --bd: var(--bd-light);
+  --header-bg: var(--header-bg-light); --ok: var(--ok-light); --bad: var(--bad-light); --unknown: var(--unknown-light);
+  --expired: var(--expired-light); --info: var(--info-light); --success: var(--success-light); --delete-btn: var(--delete-btn-light);
+  --primary-btn: var(--primary-btn-light); --logout-btn: var(--logout-btn-light); --telegram-btn: var(--telegram-btn-light);
+  --input-text: var(--input-text-light); --shadow: var(--shadow-light);
+  --user-icon: var(--user-icon-dark); --pass-icon: var(--pass-icon-dark); --expires-icon: var(--expires-icon-dark); --port-icon: var(--port-icon-dark);
+}
+html,body{background:var(--bg);color:var(--fg);font-family:'Padauk',sans-serif;line-height:1.6;margin:0;padding:10px;transition:background 0.3s, color 0.3s}
 .container{max-width:1400px;margin:auto;padding:10px}
 
 @keyframes colorful-shift {
   0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; }
 }
 
-header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px;margin-bottom:25px;background:var(--header-bg);border-radius:var(--radius);box-shadow:var(--shadow);}
+header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px;margin-bottom:25px;background:var(--header-bg);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--bd);}
 .header-left{display:flex;align-items:center;gap:15px}
 h1{margin:0;font-size:1.6em;font-weight:700;}
 .colorful-title{font-size:1.8em;font-weight:900;background:linear-gradient(90deg,#FF0000,#FF8000,#FFFF00,#00FF00,#00FFFF,#0000FF,#8A2BE2,#FF0000);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:colorful-shift 8s linear infinite;text-shadow:0 0 5px rgba(255,255,255,0.4);}
@@ -268,8 +407,13 @@ h1{margin:0;font-size:1.6em;font-weight:700;}
 .logo{height:50px;width:auto;border-radius:10px;border:2px solid var(--fg)}
 .admin-name{color:var(--user-icon);font-weight:700}
 
-.btn{padding:10px 18px;border-radius:var(--radius);border:none;color:white;text-decoration:none;white-space:nowrap;cursor:pointer;transition:all 0.3s ease;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,0.3);display:flex;align-items:center;gap:8px;}
-.btn.primary{background:var(--primary-btn)}.btn.primary:hover{background:#2980b9}
+.controls{display:flex;gap:10px;align-items:center}
+.theme-toggle{cursor:pointer;font-size:1.5em;padding:5px;border-radius:50%;transition:transform 0.2s}
+.theme-toggle:hover{transform:scale(1.1)}
+.lang-select{padding:6px 10px;border-radius:var(--radius);border:1px solid var(--bd);background:var(--bg);color:var(--fg);cursor:pointer;}
+
+.btn{padding:10px 18px;border-radius:var(--radius);border:none;color:white;text-decoration:none;white-space:nowrap;cursor:pointer;transition:all 0.3s ease;font-weight:700;box-shadow:0 4px 6px rgba(0,0,0,0.3);display:inline-flex;align-items:center;gap:8px;}
+.btn.primary{background:var(--primary-btn)}.btn.primary:hover{background:var(--info)}
 .btn.save{background:var(--success)}.btn.save:hover{background:#16a085}
 .btn.delete{background:var(--delete-btn)}.btn.delete:hover{background:#9e342b}
 .btn.logout{background:var(--logout-btn)}.btn.logout:hover{background:#d35400}
@@ -277,42 +421,40 @@ h1{margin:0;font-size:1.6em;font-weight:700;}
 .btn.secondary{background:#95a5a6}.btn.secondary:hover{background:#7f8c8d}
 
 .icon{margin-right:5px;font-size:1em;line-height:1;}
-.icon-user{color:var(--user-icon)}.icon-pass{color:var(--pass-icon)}
-.icon-expires{color:var(--expires-icon)}.icon-port{color:var(--port-icon)}
+.label-c1{color:var(--ok)}.label-c2{color:var(--unknown)}.label-c3{color:var(--bad)}
+.label-c4{color:var(--expired)}.label-c5{color:var(--logout-btn)}.label-c6{color:var(--success)}
 
-.label-c1{color:#2ecc71}.label-c2{color:#f1c40f}.label-c3{color:#e74c3c}
-.label-c4{color:#9b59b6}.label-c5{color:#e67e22}.label-c6{color:#1abc9c}
-
-form.box{margin:25px 0;padding:25px;border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow);}
-h3{color:var(--fg);margin-top:0;}
+form.box{margin:25px 0;padding:25px;border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow);border:1px solid var(--bd);}
+h3{color:var(--fg);margin-top:0;border-bottom:2px solid var(--bd);padding-bottom:10px;}
 label{display:flex;align-items:center;margin:6px 0 4px;font-size:.95em;font-weight:700;}
-input,select{width:100%;padding:12px;border:1px solid var(--bd);border-radius:var(--radius);box-sizing:border-box;background:var(--bg);color:var(--input-text);}
+input,select{width:100%;padding:12px;border:1px solid var(--bd);border-radius:var(--radius);box-sizing:border-box;background:var(--bg);color:var(--input-text);transition:border-color 0.3s;}
 input:focus,select:focus{outline:none;border-color:var(--primary-btn);}
 .row{display:flex;gap:20px;flex-wrap:wrap;margin-top:10px}
 .row>div{flex:1 1 200px}
 
 .tab-container{margin:20px 0;}
 .tabs{display:flex;gap:5px;margin-bottom:20px;border-bottom:2px solid var(--bd);}
-.tab-btn{padding:12px 24px;background:var(--card);border:none;color:var(--fg);cursor:pointer;border-radius:var(--radius) var(--radius) 0 0;transition:all 0.3s ease;}
-.tab-btn.active{background:var(--primary-btn);color:white;}
-.tab-content{display:none;}
+.tab-btn{padding:12px 24px;background:var(--card);border:1px solid var(--bd);color:var(--fg);cursor:pointer;border-radius:var(--radius) var(--radius) 0 0;transition:all 0.3s ease;border-bottom:none;}
+.tab-btn.active{background:var(--primary-btn);color:white;border-color:var(--primary-btn);box-shadow:var(--shadow);}
+.tab-content{display:none;background:var(--card);padding:20px;border-radius:0 var(--radius) var(--radius) var(--radius);box-shadow:var(--shadow);border:1px solid var(--bd);margin-top:-1px;}
 .tab-content.active{display:block;}
 
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;}
-.stat-card{padding:20px;background:var(--card);border-radius:var(--radius);text-align:center;box-shadow:var(--shadow);}
-.stat-number{font-size:2em;font-weight:700;margin:10px 0;}
-.stat-label{font-size:.9em;color:var(--bd);}
+.stat-card{padding:20px;background:var(--card);border-radius:var(--radius);text-align:center;box-shadow:var(--shadow);border:1px solid var(--bd);transition:transform 0.3s;}
+.stat-card:hover{transform:translateY(-5px);}
+.stat-number{font-size:2em;font-weight:700;margin:10px 0;color:var(--info);}
+.stat-label{font-size:.9em;color:var(--fg);}
 
-table{border-collapse:separate;width:100%;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
-th,td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);}
+table{border-collapse:separate;width:100%;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--bd);}
+th,td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);transition:background 0.3s;}
 th:last-child,td:last-child{border-right:none;}
-th{background:#252525;font-weight:700;color:var(--fg);text-transform:uppercase}
+th{background:#1e1e1e;font-weight:700;color:white;text-transform:uppercase;background:var(--header-bg);}
 tr:last-child td{border-bottom:none}
 tr:hover{background:#3a3a3a}
 
 .pill{display:inline-block;padding:5px 12px;border-radius:20px;font-size:.85em;font-weight:700;text-shadow:1px 1px 2px rgba(0,0,0,0.5);box-shadow:0 2px 4px rgba(0,0,0,0.2);}
-.status-ok{color:white;background:#2ecc71}.status-bad{color:white;background:#e74c3c}
-.status-unk{color:white;background:#f1c40f}.status-expired{color:white;background:#9b59b6}
+.status-ok{color:white;background:var(--ok)}.status-bad{color:white;background:var(--bad)}
+.status-unk{color:white;background:var(--unknown)}.status-expired{color:white;background:var(--expired)}
 .pill-yellow{background:#f1c40f}.pill-red{background:#e74c3c}.pill-green{background:#2ecc71}
 .pill-lightgreen{background:#1abc9c}.pill-pink{background:#f78da7}.pill-orange{background:#e67e22}
 
@@ -321,67 +463,84 @@ tr:hover{background:#3a3a3a}
 tr.expired td{opacity:.9;background:var(--expired);color:white}
 tr.expired .muted{color:#ddd;}
 .center{display:flex;align-items:center;justify-content:center}
-.login-card{max-width:400px;margin:10vh auto;padding:30px;border-radius:12px;background:var(--card);box-shadow:var(--shadow);}
-.login-card h3{margin:5px 0 15px;font-size:1.8em;text-shadow:0 1px 3px rgba(0,0,0,0.5);}
+.login-card{max-width:400px;margin:10vh auto;padding:30px;border-radius:12px;background:var(--card);box-shadow:var(--shadow);border:1px solid var(--bd);}
+.login-card h3{margin:5px 0 15px;font-size:1.8em;text-shadow:0 1px 3px rgba(0,0,0,0.5);color:var(--primary-btn)}
 .msg{margin:10px 0;padding:12px;border-radius:var(--radius);background:var(--success);color:white;font-weight:700;}
 .err{margin:10px 0;padding:12px;border-radius:var(--radius);background:var(--delete-btn);color:white;font-weight:700;}
 
 .bulk-actions{margin:15px 0;display:flex;gap:10px;flex-wrap:wrap;}
-.bulk-actions select,.bulk-actions input{padding:8px;border-radius:var(--radius);background:var(--bg);color:var(--fg);border:1px solid var(--bd);}
+.bulk-actions select,.bulk-actions input{padding:10px;border-radius:var(--radius);background:var(--bg);color:var(--input-text);border:1px solid var(--bd);}
 
 @media (max-width: 768px) {
   body{padding:10px}.container{padding:0}
   header{flex-direction:column;align-items:flex-start;padding:10px;}
   .header-left{width:100%;justify-content:space-between;margin-bottom:10px;}
+  .controls{justify-content:space-between;width:100%;}
   .row>div,.stats-grid{grid-template-columns:1fr;}
   .btn{width:100%;margin-bottom:5px;justify-content:center}
   table,thead,tbody,th,td,tr{display:block;}
   thead tr{position:absolute;top:-9999px;left:-9999px;}
   tr{border:1px solid var(--bd);margin-bottom:10px;border-radius:var(--radius);overflow:hidden;background:var(--card);}
-  td{border:none;border-bottom:1px dotted var(--bd);position:relative;padding-left:50%;text-align:right;}
+  td{border:none;border-bottom:1px dotted var(--bd);position:relative;padding-left:50%;text-align:right;white-space:normal !important;}
   td:before{position:absolute;top:12px;left:10px;width:45%;padding-right:10px;white-space:nowrap;text-align:left;font-weight:700;color:var(--info);}
-  td:nth-of-type(1):before{content:"👤 User";}td:nth-of-type(2):before{content:"🔑 Password";}
-  td:nth-of-type(3):before{content:"⏰ Expires";}td:nth-of-type(4):before{content:"🔌 Port";}
-  td:nth-of-type(5):before{content:"📊 Bandwidth";}td:nth-of-type(6):before{content:"⚡ Speed";}
-  td:nth-of-type(7):before{content:"🔎 Status";}td:nth-of-type(8):before{content:"🗑️ Delete";}
-  .delform{width:100%;}tr.expired td{background:var(--expired);}
+  td:nth-of-type(1):before{content:"{{ t.user_label }}";}td:nth-of-type(2):before{content:"{{ t.password_label }}";}
+  td:nth-of-type(3):before{content:"{{ t.expires_label }}";}td:nth-of-type(4):before{content:"{{ t.port_label }}";}
+  td:nth-of-type(5):before{content:"{{ t.bandwidth_limit_label }}";}td:nth-of-type(6):before{content:"{{ t.speed_limit_label }}";}
+  td:nth-of-type(7):before{content:"{{ t.active_users }}";}td:nth-of-type(8):before{content:"{{ t.actions }}";}
+  .delform{display:block;width:100%;margin-bottom:5px;}tr.expired td{background:var(--expired);}
 }
 </style>
 </head>
-<body>
+<body class="{{ 'light-mode' if session.get('theme') == 'light' else 'dark-mode' }}">
 <div class="container">
 
 {% if not authed %}
   <div class="login-card">
-    <div class="center" style="margin-bottom:20px"><img class="logo" src="{{ logo }}" alt="မောင်သုည"></div>
-    <h3 class="center">မောင်သုည Enterprise Panel Login</h3>
+    <div class="center" style="margin-bottom:20px"><img class="logo" src="{{ logo }}" alt="4 0 4 \ 2.0"></div>
+    <h3 class="center">ZIVPN Panel {{ t.login }}</h3>
     {% if err %}<div class="err">{{err}}</div>{% endif %}
     <form method="post" action="/login">
-      <label class="label-c1"><i class="fas fa-user icon icon-user"></i>Username</label>
+      <label class="label-c1"><i class="fas fa-user icon"></i>{{ t.user_label }}</label>
       <input name="u" autofocus required>
-      <label class="label-c2" style="margin-top:15px"><i class="fas fa-lock icon icon-pass"></i>Password</label>
+      <label class="label-c2" style="margin-top:15px"><i class="fas fa-lock icon"></i>{{ t.password_label }}</label>
       <input name="p" type="password" required>
       <button class="btn primary" type="submit" style="margin-top:20px;width:100%">
-        <i class="fas fa-sign-in-alt"></i>Login
+        <i class="fas fa-sign-in-alt"></i>{{ t.login }}
       </button>
     </form>
+    <div class="controls" style="margin-top:20px;justify-content:flex-start;">
+      <span class="theme-toggle" onclick="toggleTheme()">
+        <i id="theme-icon" class="fas fa-moon"></i>
+      </span>
+      <select class="lang-select" onchange="changeLang(this.value)">
+        <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+        <option value="my" {% if lang == 'my' %}selected{% endif %}>မြန်မာ</option>
+      </select>
+    </div>
   </div>
 {% else %}
 
 <header>
   <div class="header-left">
-    <img src="{{ logo }}" alt="မောင်သုည" class="logo">
+    <img src="{{ logo }}" alt="4 0 4 \ 2.0 [🇲🇲]" class="logo">
     <div>
       <h1><span class="colorful-title">Channel 404 ZIVPN Enterprise</span></h1>
-      <div class="sub"><span class="colorful-title" style="font-size:1em;font-weight:700;animation-duration:12s;">⊱✫⊰ Enterprise Management System ⊱✫⊰</span></div>
+      <div class="sub"><span class="colorful-title" style="font-size:1em;font-weight:700;animation-duration:12s;">⊱✫⊰ {{ t.subtitle }} ⊱✫⊰</span></div>
     </div>
   </div>
-  <div style="display:flex;gap:10px;align-items:center">
+  <div class="controls">
+    <span class="theme-toggle" onclick="toggleTheme()">
+      <i id="theme-icon" class="fas {% if session.get('theme') == 'light' %}fa-sun{% else %}fa-moon{% endif %}"></i>
+    </span>
+    <select class="lang-select" onchange="changeLang(this.value)">
+      <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+      <option value="my" {% if lang == 'my' %}selected{% endif %}>မြန်မာ</option>
+    </select>
     <a class="btn contact" href="https://t.me/nkka404" target="_blank" rel="noopener">
-      <i class="fab fa-telegram-plane"></i>Contact
+      <i class="fab fa-telegram-plane"></i>{{ t.contact }}
     </a>
     <a class="btn logout" href="/logout">
-      <i class="fas fa-sign-out-alt"></i>Logout
+      <i class="fas fa-sign-out-alt"></i>{{ t.logout }}
     </a>
   </div>
 </header>
@@ -389,54 +548,52 @@ tr.expired .muted{color:#ddd;}
 <!-- Stats Dashboard -->
 <div class="stats-grid">
   <div class="stat-card">
-    <i class="fas fa-users" style="font-size:2em;color:#3498db;"></i>
+    <i class="fas fa-users" style="font-size:2em;color:var(--info);"></i>
     <div class="stat-number">{{ stats.total_users }}</div>
-    <div class="stat-label">Total Users</div>
-    <div class="stat-label label-c1">{{ stats.users_active }} Active</div>
+    <div class="stat-label">{{ t.total_users }}</div>
   </div>
   <div class="stat-card">
-    <i class="fas fa-signal" style="font-size:2em;color:#27ae60;"></i>
-    <div class="stat-number">{{ stats.online_users }}</div>
-    <div class="stat-label">Online Connections (Conntrack)</div>
+    <i class="fas fa-signal" style="font-size:2em;color:var(--ok);"></i>
+    <div class="stat-number">{{ stats.active_users }}</div>
+    <div class="stat-label">{{ t.active_users }}</div>
   </div>
   <div class="stat-card">
-    <i class="fas fa-database" style="font-size:2em;color:#e74c3c;"></i>
+    <i class="fas fa-database" style="font-size:2em;color:var(--delete-btn);"></i>
     <div class="stat-number">{{ stats.total_bandwidth }}</div>
-    <div class="stat-label">Total Bandwidth Used</div>
+    <div class="stat-label">{{ t.bandwidth_used }}</div>
   </div>
   <div class="stat-card">
-    <i class="fas fa-server" style="font-size:2em;color:#f39c12;"></i>
+    <i class="fas fa-server" style="font-size:2em;color:var(--unknown);"></i>
     <div class="stat-number">{{ stats.server_load }}%</div>
-    <div class="stat-label">Server Load (Estimated)</div>
+    <div class="stat-label">{{ t.server_load }}</div>
   </div>
 </div>
 
-
 <div class="tab-container">
   <div class="tabs">
-    <button class="tab-btn active" onclick="openTab('users')">User Management</button>
-    <button class="tab-btn" onclick="openTab('adduser')">Add User</button>
-    <button class="tab-btn" onclick="openTab('bulk')">Bulk Operations</button>
-    <button class="tab-btn" onclick="openTab('reports')">Reports</button>
+    <button class="tab-btn active" onclick="openTab(event, 'users')">{{ t.user_management }}</button>
+    <button class="tab-btn" onclick="openTab(event, 'adduser')">{{ t.add_new_user }}</button>
+    <button class="tab-btn" onclick="openTab(event, 'bulk')">{{ t.bulk_operations }}</button>
+    <button class="tab-btn" onclick="openTab(event, 'reports')">{{ t.reports }}</button>
   </div>
 
   <!-- Add User Tab -->
   <div id="adduser" class="tab-content">
-    <form method="post" action="/add" class="box">
-      <h3 class="label-c6"><i class="fas fa-users-cog"></i> အသုံးပြုသူ အသစ်ထည့်ပါ</h3>
+    <form method="post" action="/add" class="box" style="box-shadow:none;border:none;padding:0;margin:0;">
+      <h3 class="label-c6"><i class="fas fa-users-cog"></i> {{ t.add_new_user }}</h3>
       {% if msg %}<div class="msg">{{msg}}</div>{% endif %}
       {% if err %}<div class="err">{{err}}</div>{% endif %}
       <div class="row">
-        <div><label class="label-c1"><i class="fas fa-user icon icon-user"></i> User</label><input name="user" placeholder="User Name" required></div>
-        <div><label class="label-c2"><i class="fas fa-lock icon icon-pass"></i> Password</label><input name="password" placeholder="Password" required></div>
-        <div><label class="label-c3"><i class="fas fa-clock icon icon-expires"></i> Expires</label><input name="expires" placeholder="2026-01-01 or 30"></div>
-        <div><label class="label-c4"><i class="fas fa-server icon icon-port"></i> Port</label><input name="port" placeholder="auto" type="number" min="6000" max="19999"></div>
+        <div><label class="label-c1"><i class="fas fa-user icon"></i> {{ t.user_label }}</label><input name="user" placeholder="{{ t.user_label }}" required></div>
+        <div><label class="label-c2"><i class="fas fa-lock icon"></i> {{ t.password_label }}</label><input name="password" placeholder="{{ t.password_label }}" required></div>
+        <div><label class="label-c3"><i class="fas fa-clock icon"></i> {{ t.expires_label }}</label><input name="expires" placeholder="2026-01-01 or 30"></div>
+        <div><label class="label-c4"><i class="fas fa-server icon"></i> {{ t.port_label }}</label><input name="port" placeholder="auto" type="number" min="6000" max="19999"></div>
       </div>
       <div class="row">
-        <div><label class="label-c5"><i class="fas fa-tachometer-alt"></i> Speed Limit (MB/s)</label><input name="speed_limit" placeholder="0 = unlimited" type="number"></div>
-        <div><label class="label-c6"><i class="fas fa-database"></i> Bandwidth Limit (GB)</label><input name="bandwidth_limit" placeholder="0 = unlimited" type="number"></div>
-        <div><label class="label-c1"><i class="fas fa-plug"></i> Max Connections</label><input name="concurrent_conn" value="1" type="number" min="1" max="10"></div>
-        <div><label class="label-c2"><i class="fas fa-money-bill"></i> Plan Type</label>
+        <div><label class="label-c5"><i class="fas fa-tachometer-alt"></i> {{ t.speed_limit_label }}</label><input name="speed_limit" placeholder="0 = {{ t.unlimited }}" type="number"></div>
+        <div><label class="label-c6"><i class="fas fa-database"></i> {{ t.bandwidth_limit_label }}</label><input name="bandwidth_limit" placeholder="0 = {{ t.unlimited }}" type="number"></div>
+        <div><label class="label-c1"><i class="fas fa-plug"></i> {{ t.max_conn_label }}</label><input name="concurrent_conn" value="1" type="number" min="1" max="10"></div>
+        <div><label class="label-c2"><i class="fas fa-money-bill"></i> {{ t.plan_type_label }}</label>
           <select name="plan_type">
             <option value="free">Free</option>
             <option value="daily">Daily</option>
@@ -447,34 +604,34 @@ tr.expired .muted{color:#ddd;}
         </div>
       </div>
       <button class="btn save" type="submit" style="margin-top:20px">
-        <i class="fas fa-save"></i> Save User
+        <i class="fas fa-save"></i> {{ t.save_user }}
       </button>
     </form>
   </div>
 
   <!-- Bulk Operations Tab -->
   <div id="bulk" class="tab-content">
-    <div class="box">
-      <h3 class="label-c5"><i class="fas fa-cogs"></i> Bulk User Operations</h3>
+    <div class="box" style="box-shadow:none;border:none;padding:0;margin:0;">
+      <h3 class="label-c5"><i class="fas fa-cogs"></i> {{ t.bulk_operations }}</h3>
       <div class="bulk-actions">
         <select id="bulkAction">
-          <option value="">Select Action</option>
-          <option value="extend">Extend Expiry (+7 days)</option>
-          <option value="suspend">Suspend Users</option>
-          <option value="activate">Activate Users</option>
-          <option value="delete">Delete Users</option>
+          <option value="">{{ t.select_action }}</option>
+          <option value="extend">{{ t.extend_expiry }}</option>
+          <option value="suspend">{{ t.suspend_users }}</option>
+          <option value="activate">{{ t.activate_users }}</option>
+          <option value="delete">{{ t.delete_users }}</option>
         </select>
-        <input type="text" id="bulkUsers" placeholder="Usernames comma separated (user1,user2)">
+        <input type="text" id="bulkUsers" placeholder="{{ t.usernames_placeholder }}" style="flex:2;">
         <button class="btn secondary" onclick="executeBulkAction()">
-          <i class="fas fa-play"></i> Execute
+          <i class="fas fa-play"></i> {{ t.execute }}
         </button>
       </div>
-      <div style="margin-top:15px">
+      <div style="margin-top:25px">
         <button class="btn primary" onclick="exportUsers()">
-          <i class="fas fa-download"></i> Export Users CSV
+          <i class="fas fa-download"></i> {{ t.export_csv }}
         </button>
         <button class="btn secondary" onclick="importUsers()">
-          <i class="fas fa-upload"></i> Import Users
+          <i class="fas fa-upload"></i> {{ t.import_users }}
         </button>
       </div>
     </div>
@@ -482,12 +639,12 @@ tr.expired .muted{color:#ddd;}
 
   <!-- Users Management Tab -->
   <div id="users" class="tab-content active">
-    <div class="box">
-      <h3 class="label-c1"><i class="fas fa-users"></i> User Management</h3>
+    <div class="box" style="box-shadow:none;border:none;padding:0;margin:0;">
+      <h3 class="label-c1"><i class="fas fa-users"></i> {{ t.user_management }}</h3>
       <div style="margin:15px 0;display:flex;gap:10px;">
-        <input type="text" id="searchUser" placeholder="Search users..." style="flex:1;">
+        <input type="text" id="searchUser" placeholder="{{ t.search_users }}" style="flex:1;">
         <button class="btn secondary" onclick="filterUsers()">
-          <i class="fas fa-search"></i> Search
+          <i class="fas fa-search"></i>
         </button>
       </div>
     </div>
@@ -495,35 +652,35 @@ tr.expired .muted{color:#ddd;}
     <table>
       <thead>
         <tr>
-          <th><i class="fas fa-user"></i> User</th>
-          <th><i class="fas fa-lock"></i> Password</th>
-          <th><i class="fas fa-clock"></i> Expires</th>
-          <th><i class="fas fa-server"></i> Port</th>
-          <th><i class="fas fa-database"></i> Bandwidth</th>
-          <th><i class="fas fa-tachometer-alt"></i> Speed</th>
-          <th><i class="fas fa-chart-line"></i> Status</th>
-          <th><i class="fas fa-cog"></i> Actions</th>
+          <th><i class="fas fa-user"></i> {{ t.user_label }}</th>
+          <th><i class="fas fa-lock"></i> {{ t.password_label }}</th>
+          <th><i class="fas fa-clock"></i> {{ t.expires_label }}</th>
+          <th><i class="fas fa-server"></i> {{ t.port_label }}</th>
+          <th><i class="fas fa-database"></i> {{ t.bandwidth_limit_label }}</th>
+          <th><i class="fas fa-tachometer-alt"></i> {{ t.speed_limit_label }}</th>
+          <th><i class="fas fa-chart-line"></i> {{ t.active_users }}</th>
+          <th><i class="fas fa-cog"></i> {{ t.actions }}</th>
         </tr>
       </thead>
       <tbody>
       {% for u in users %}
-      <tr class="{% if u.expires and u.expires < today %}expired{% endif %}">
-        <td style="color:#2ecc71;"><strong>{{u.user}}</strong></td>
+      <tr class="{% if u.status == 'Expired' %}expired{% endif %}">
+        <td style="color:var(--ok);"><strong>{{u.user}}</strong></td>
         <td>{{u.password}}</td>
         <td>{% if u.expires %}<span class="pill-pink">{{u.expires}}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
         <td>{% if u.port %}<span class="pill-orange">{{u.port}}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
         <td><span class="pill-lightgreen">{{u.bandwidth_used}}/{{u.bandwidth_limit}} GB</span></td>
         <td><span class="pill-yellow">{{u.speed_limit}} MB/s</span></td>
         <td>
-          {% if u.status == "Online" %}<span class="pill status-ok">ONLINE</span>
-          {% elif u.status == "Offline" %}<span class="pill status-bad">OFFLINE</span>
-          {% elif u.expires and u.expires < today %}<span class="pill status-expired">EXPIRED</span>
-          {% elif u.status == "suspended" %}<span class="pill status-bad">SUSPENDED</span>
-          {% else %}<span class="pill status-unk">UNKNOWN</span>
+          {% if u.status == "Online" %}<span class="pill status-ok">{{ t.online }}</span>
+          {% elif u.status == "Offline" %}<span class="pill status-bad">{{ t.offline }}</span>
+          {% elif u.status == "Expired" %}<span class="pill status-expired">{{ t.expired }}</span>
+          {% elif u.status == "suspended" %}<span class="pill status-bad">{{ t.suspended }}</span>
+          {% else %}<span class="pill status-unk">{{ t.unknown }}</span>
           {% endif %}
         </td>
         <td style="display:flex;gap:5px;">
-          <form class="delform" method="post" action="/delete" onsubmit="return confirm('{{u.user}} ကို ဖျက်မလား?')">
+          <form class="delform" method="post" action="/delete" onsubmit="return confirm('{{ t.delete_confirm|format(u.user) }}')">
             <input type="hidden" name="user" value="{{u.user}}">
             <button type="submit" class="btn delete" style="padding:6px 12px;">
               <i class="fas fa-trash-alt"></i>
@@ -532,7 +689,7 @@ tr.expired .muted{color:#ddd;}
           <button class="btn secondary" style="padding:6px 12px;" onclick="editUser('{{u.user}}')">
             <i class="fas fa-edit"></i>
           </button>
-          {% if u.status == "suspended" %}
+          {% if u.status == "suspended" or u.status == "Expired" %}
           <form class="delform" method="post" action="/activate">
             <input type="hidden" name="user" value="{{u.user}}">
             <button type="submit" class="btn save" style="padding:6px 12px;">
@@ -556,22 +713,24 @@ tr.expired .muted{color:#ddd;}
 
   <!-- Reports Tab -->
   <div id="reports" class="tab-content">
-    <div class="box">
-      <h3 class="label-c6"><i class="fas fa-chart-bar"></i> Reports & Analytics</h3>
+    <div class="box" style="box-shadow:none;border:none;padding:0;margin:0;">
+      <h3 class="label-c6"><i class="fas fa-chart-bar"></i> {{ t.reports }}</h3>
       <div class="row">
-        <div><label>From Date</label><input type="date" id="fromDate"></div>
-        <div><label>To Date</label><input type="date" id="toDate"></div>
-        <div><label>Report Type</label>
+        <div><label>{{ t.from_date }}</label><input type="date" id="fromDate"></div>
+        <div><label>{{ t.to_date }}</label><input type="date" id="toDate"></div>
+        <div><label>{{ t.report_type }}</label>
           <select id="reportType">
-            <option value="bandwidth">Bandwidth Usage</option>
-            <option value="users">User Activity</option>
-            <option value="revenue">Revenue</option>
+            <option value="bandwidth">{{ t.bandwidth_usage }}</option>
+            <option value="users">{{ t.user_activity }}</option>
+            <option value="revenue">{{ t.revenue }}</option>
           </select>
         </div>
-        <div><button class="btn primary" onclick="generateReport()" style="margin-top:25px;">Generate Report</button></div>
+        <div><button class="btn primary" onclick="generateReport()" style="margin-top:25px;">
+          <i class="fas fa-chart-bar"></i> {{ t.generate_report }}
+        </button></div>
       </div>
     </div>
-    <div id="reportResults"></div>
+    <div id="reportResults" class="box" style="margin-top:20px;padding:15px;font-family:monospace;white-space:pre-wrap;overflow-x:auto;"></div>
   </div>
 </div>
 
@@ -579,24 +738,73 @@ tr.expired .muted{color:#ddd;}
 </div>
 
 <script>
-function openTab(tabName) {
+const translations = {{ t | tojson }};
+const lang = "{{ lang }}";
+const loginRequired = {{ 'true' if login_enabled() else 'false' }};
+
+function openTab(event, tabName) {
   document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(tabName).classList.add('active');
   event.currentTarget.classList.add('active');
 }
 
+function t(key) {
+  return translations[key] || key;
+}
+
+function toggleTheme() {
+  const body = document.body;
+  const currentTheme = body.classList.contains('light-mode') ? 'light' : 'dark';
+  const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+  body.classList.toggle('light-mode');
+  document.getElementById('theme-icon').className = newTheme === 'light' ? 'fas fa-sun' : 'fas fa-moon';
+  localStorage.setItem('theme', newTheme);
+}
+
+function changeLang(newLang) {
+  if (loginRequired && !{{ 'true' if authed else 'false' }}) {
+    // If not authed, save to storage and reload login page
+    localStorage.setItem('lang', newLang);
+    window.location.href = '/login?lang=' + newLang;
+  } else {
+    // If authed, use server route to update session and reload
+    window.location.href = '/lang?set=' + newLang;
+  }
+}
+
+// Initialize theme on load
+document.addEventListener('DOMContentLoaded', () => {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    document.getElementById('theme-icon').className = 'fas fa-sun';
+  }
+  // Ensure the language select is set correctly (only on unauthed page load)
+  if (!{{ 'true' if authed else 'false' }} && loginRequired) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    const savedLang = localStorage.getItem('lang') || 'en';
+    const effectiveLang = urlLang || savedLang;
+    const langSelect = document.querySelector('.lang-select');
+    if (langSelect) {
+      langSelect.value = effectiveLang;
+      localStorage.setItem('lang', effectiveLang); // Store effective lang
+    }
+  }
+});
+
 function executeBulkAction() {
   const action = document.getElementById('bulkAction').value;
   const users = document.getElementById('bulkUsers').value;
-  if (!action || !users) { alert('Please select action and enter users'); return; }
+  if (!action || !users) { alert('{{ t("select_action") }}'); return; }
   
   fetch('/api/bulk', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action, users: users.split(',')})
+    body: JSON.stringify({action, users: users.split(',').map(u => u.trim()).filter(u => u)})
   }).then(r => r.json()).then(data => {
-    alert(data.message); location.reload();
+    alert(data.message || data.err); location.reload();
   });
 }
 
@@ -613,14 +821,14 @@ function filterUsers() {
 }
 
 function editUser(username) {
-  const newPass = prompt('Enter new password for ' + username);
-  if (newPass) {
+  const newPass = prompt(t('update_user') + ' ' + username + ':');
+  if (newPass !== null && newPass.trim() !== "") {
     fetch('/api/user/update', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({user: username, password: newPass})
+      body: JSON.stringify({user: username, password: newPass.trim()})
     }).then(r => r.json()).then(data => {
-      alert(data.message); location.reload();
+      alert(data.message || data.err); location.reload();
     });
   }
 }
@@ -629,11 +837,22 @@ function generateReport() {
   const from = document.getElementById('fromDate').value;
   const to = document.getElementById('toDate').value;
   const type = document.getElementById('reportType').value;
+  document.getElementById('reportResults').innerHTML = t('generating_report');
   
   fetch(`/api/reports?from=${from}&to=${to}&type=${type}`)
     .then(r => r.json()).then(data => {
-      document.getElementById('reportResults').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+      if (data.error) {
+        document.getElementById('reportResults').innerHTML = `<div class="err">${data.error}</div>`;
+      } else {
+        document.getElementById('reportResults').innerHTML = '<pre style="white-space:pre-wrap;">' + JSON.stringify(data, null, 2) + '</pre>';
+      }
+    }).catch(e => {
+      document.getElementById('reportResults').innerHTML = `<div class="err">Error fetching report: ${e.message}</div>`;
     });
+}
+
+function importUsers() {
+  alert('{{ t("import_users") }} - This feature requires manual file upload/database interaction currently.');
 }
 </script>
 </body></html>"""
@@ -668,8 +887,8 @@ def load_users():
     db = get_db()
     users = db.execute('''
         SELECT username as user, password, expires, port, status, 
-               bandwidth_limit, bandwidth_used, speed_limit_up as speed_limit,
-               concurrent_conn
+               bandwidth_limit, ROUND(CAST(bandwidth_used AS REAL) / (1024 * 1024 * 1024), 2) as bandwidth_used,
+               speed_limit_up as speed_limit, concurrent_conn
         FROM users
     ''').fetchall()
     db.close()
@@ -678,24 +897,26 @@ def load_users():
 def save_user(user_data):
     db = get_db()
     try:
+        # Convert GB back to Bytes for storage
+        bw_limit_bytes = int(user_data.get('bandwidth_limit', 0)) * 1024 * 1024 * 1024
+        
         db.execute('''
             INSERT OR REPLACE INTO users 
             (username, password, expires, port, status, bandwidth_limit, speed_limit_up, concurrent_conn)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             user_data['user'], user_data['password'], user_data.get('expires'),
-            user_data.get('port'), 'active', user_data.get('bandwidth_limit', 0),
+            user_data.get('port'), 'active', bw_limit_bytes,
             user_data.get('speed_limit', 0), user_data.get('concurrent_conn', 1)
         ))
         db.commit()
         
         # Add to billing if plan type specified
-        if user_data.get('plan_type'):
-            expires = user_data.get('expires') or (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+        if user_data.get('plan_type') and user_data.get('expires'):
             db.execute('''
                 INSERT INTO billing (username, plan_type, expires_at)
                 VALUES (?, ?, ?)
-            ''', (user_data['user'], user_data['plan_type'], expires))
+            ''', (user_data['user'], user_data['plan_type'], user_data['expires']))
             db.commit()
             
     finally:
@@ -704,6 +925,8 @@ def save_user(user_data):
 def delete_user(username):
     db = get_db()
     try:
+        # Also clear the port to ensure the lowest available port is reused quickly
+        db.execute('UPDATE users SET port = NULL WHERE username = ?', (username,))
         db.execute('DELETE FROM users WHERE username = ?', (username,))
         db.execute('DELETE FROM billing WHERE username = ?', (username,))
         db.commit()
@@ -714,68 +937,66 @@ def get_server_stats():
     db = get_db()
     try:
         total_users = db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
-        users_active = db.execute('SELECT COUNT(*) FROM users WHERE status = "active"').fetchone()[0]
-        total_bandwidth = db.execute('SELECT SUM(bandwidth_used) FROM users').fetchone()[0] or 0
+        active_users = db.execute('SELECT COUNT(*) FROM users WHERE status = "active"').fetchone()[0]
+        total_bandwidth_bytes = db.execute('SELECT SUM(bandwidth_used) FROM users').fetchone()[0] or 0
         # Simple server load simulation
-        server_load = min(100, total_users * 2 + users_active * 5)
+        server_load = min(100, active_users * 5)
         
-        # Estimate online users by checking recent conntrack activity on main VPN port
-        try:
-            out = subprocess.run(
-                "conntrack -L -p udp 2>/dev/null | grep -c 'dport=5667\\b'",
-                shell=True, capture_output=True, text=True, timeout=5
-            ).stdout.strip()
-            online_users = int(out) if out.isdigit() else 0
-        except Exception:
-            online_users = 0
-
         return {
             'total_users': total_users,
-            'users_active': users_active,
-            'online_users': online_users,
-            'total_bandwidth': f"{total_bandwidth / 1024 / 1024 / 1024:.2f} GB",
+            'active_users': active_users,
+            'total_bandwidth': f"{total_bandwidth_bytes / (1024 * 1024 * 1024):.2f} GB",
             'server_load': server_load
         }
     finally:
         db.close()
 
-def get_listen_port_from_config():
-    cfg=read_json(CONFIG_FILE,{})
-    listen=str(cfg.get("listen","")).strip()
-    m=re.search(r":(\d+)$", listen) if listen else None
-    return (m.group(1) if m else LISTEN_FALLBACK)
-
 def get_udp_listen_ports():
+    # Gets all UDP ports actively listened to by the OS
     out=subprocess.run("ss -uHln", shell=True, capture_output=True, text=True).stdout
     return set(re.findall(r":(\d+)\s", out))
 
-# FIX: Modified to check for activity on the user's mapped port OR the main VPN port 5667.
 def has_recent_udp_activity(port):
     if not port: return False
-    # FIX: Check for user's mapped port OR the main VPN port (5667) due to DNAT.
     try:
-        # The main VPN port is 5667 (LISTEN_FALLBACK)
-        command = "conntrack -L -p udp 2>/dev/null | grep -E 'dport=%s\\b|dport=5667\\b'" % port
-        out=subprocess.run(command,
-                           shell=True, capture_output=True, text=True, timeout=5).stdout
+        # Check conntrack for activity within the last few minutes (default 300s/5min timeout for UDP)
+        # We check if any connection is currently tracked for this port.
+        out=subprocess.run("conntrack -L -p udp 2>/dev/null | grep 'dport=%s\\b'"%port,
+                           shell=True, capture_output=True, text=True).stdout
         return bool(out.strip())
     except Exception:
         return False
 
-def status_for_user(u, active_ports, listen_port):
-    port=str(u.get("port",""))
-    check_port=port if port else listen_port
-    if u.get('status') == 'suspended': return "suspended"
-    if has_recent_udp_activity(check_port): return "Online"
-    # The following check is redundant and can cause false negatives. Removed for simplicity.
-    # if check_port in active_ports: return "Offline" 
-    if str(u.get('expires')) and datetime.strptime(str(u.get('expires')), "%Y-%m-%d").date() < datetime.now().date():
-        return "Expired"
-    return "Offline" # Default to offline if no conntrack activity is found
+def status_for_user(u):
+    status = u.get('status', 'active')
+    expires_str = u.get("expires", "")
+    today_date = datetime.now().date()
+    is_expired = False
+
+    if expires_str:
+        try:
+            expires_dt=datetime.strptime(expires_str, "%Y-%m-%d").date()
+            if expires_dt < today_date:
+                is_expired=True
+        except ValueError:
+            pass
+    
+    if status == 'suspended' or is_expired:
+        # If explicitly suspended or expired, report that status, regardless of connection
+        return "Expired" if is_expired else "suspended"
+    
+    # If active, check connection state
+    port = str(u.get("port",""))
+    if not port: return "Unknown"
+    
+    if has_recent_udp_activity(port):
+        return "Online"
+    else:
+        return "Offline"
 
 def sync_config_passwords(mode="mirror"):
     users=load_users()
-    users_pw=sorted({str(u["password"]) for u in users if u.get("password")})
+    users_pw=sorted({str(u["password"]) for u in users if u.get("password") and u.get("status") not in ["suspended", "Expired"]})
     
     cfg=read_json(CONFIG_FILE,{})
     if not isinstance(cfg.get("auth"),dict): cfg["auth"]={}
@@ -791,58 +1012,71 @@ def sync_config_passwords(mode="mirror"):
 
 def login_enabled(): return bool(ADMIN_USER and ADMIN_PASS)
 def is_authed(): return session.get("auth") == True
+
+def get_current_lang():
+    # 1. Check URL parameter (for login page use)
+    url_lang = request.args.get('lang')
+    if url_lang and url_lang in LANGUAGES: return url_lang
+    # 2. Check session
+    session_lang = session.get('lang')
+    if session_lang and session_lang in LANGUAGES: return session_lang
+    # 3. Default
+    return 'my' # Default to Burmese
+
+@app.before_request
+def set_language_from_session():
+    if 'lang' not in session:
+        session['lang'] = 'my' # Initial default
+
+@app.route("/lang", methods=["GET"])
+def set_language():
+    new_lang = request.args.get('set')
+    if new_lang in LANGUAGES:
+        session['lang'] = new_lang
+    return redirect(url_for('index'))
+
+
 def require_login():
     if login_enabled() and not is_authed():
         return False
     return True
 
 def build_view(msg="", err=""):
+    lang = get_current_lang()
+    t = LANGUAGES.get(lang) or LANGUAGES['my']
+
     if not require_login():
-        return render_template_string(HTML, authed=False, logo=LOGO_URL, err=session.pop("login_err", None))
+        return render_template_string(HTML, authed=False, logo=LOGO_URL, err=session.pop("login_err", None), t=t, lang=lang, login_enabled=login_enabled)
     
     users=load_users()
     active=get_udp_listen_ports()
-    listen_port=get_listen_port_from_config()
     stats = get_server_stats()
     
     view=[]
-    today_date=datetime.now().date()
-    
     for u in users:
-        expires_str=u.get("expires","")
-        is_expired=False
-        if expires_str:
-            try:
-                expires_dt=datetime.strptime(expires_str, "%Y-%m-%d").date()
-                if expires_dt < today_date:
-                    is_expired=True
-            except ValueError:
-                pass
-        
-        status=status_for_user(u,active,listen_port)
-        if is_expired and status=="Offline":
-            status="Expired"
-            
+        u_status = status_for_user(u)
         view.append(type("U",(),{
             "user":u.get("user",""),
             "password":u.get("password",""),
-            "expires":expires_str,
+            "expires":u.get("expires",""),
             "port":u.get("port",""),
-            "status":status,
+            "status":u_status,
             "bandwidth_limit": u.get('bandwidth_limit', 0),
             "bandwidth_used": u.get('bandwidth_used', 0),
             "speed_limit": u.get('speed_limit', 0)
         }))
     
     view.sort(key=lambda x:(x.user or "").lower())
-    today=today_date.strftime("%Y-%m-%d")
     
     return render_template_string(HTML, authed=True, logo=LOGO_URL, 
-                                users=view, msg=msg, err=err, today=today, stats=stats)
+                                users=view, msg=msg, err=err, stats=stats, t=t, lang=lang, login_enabled=login_enabled)
 
 # Routes
 @app.route("/login", methods=["GET","POST"])
 def login():
+    lang = get_current_lang()
+    t = LANGUAGES.get(lang) or LANGUAGES['my']
+    
     if not login_enabled(): return redirect(url_for('index'))
     if request.method=="POST":
         u=(request.form.get("u") or "").strip()
@@ -852,20 +1086,23 @@ def login():
             return redirect(url_for('index'))
         else:
             session["auth"]=False
-            session["login_err"]="မှန်ကန်မှုမရှိပါ"
-            return redirect(url_for('login'))
-    return render_template_string(HTML, authed=False, logo=LOGO_URL, err=session.pop("login_err", None))
+            session["login_err"]=t['login_err']
+            return redirect(url_for('login', lang=lang))
+    return render_template_string(HTML, authed=False, logo=LOGO_URL, err=session.pop("login_err", None), t=t, lang=lang, login_enabled=login_enabled)
 
 @app.route("/logout", methods=["GET"])
 def logout():
+    lang = get_current_lang()
     session.pop("auth", None)
-    return redirect(url_for('login') if login_enabled() else url_for('index'))
+    return redirect(url_for('login', lang=lang) if login_enabled() else url_for('index'))
 
 @app.route("/", methods=["GET"])
 def index(): return build_view()
 
 @app.route("/add", methods=["POST"])
 def add_user():
+    lang = get_current_lang()
+    t = LANGUAGES.get(lang) or LANGUAGES['my']
     if not require_login(): return redirect(url_for('login'))
     
     user_data = {
@@ -880,23 +1117,31 @@ def add_user():
     }
     
     if not user_data['user'] or not user_data['password']:
-        return build_view(err="User နှင့် Password လိုအပ်သည်")
+        return build_view(err=t['user_pass_required'])
     
+    # Handle expiration calculation (days or date)
     if user_data['expires'] and user_data['expires'].isdigit():
-        user_data['expires'] = (datetime.now() + timedelta(days=int(user_data['expires']))).strftime("%Y-%m-%d")
+        try:
+            days = int(user_data['expires'])
+            user_data['expires'] = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        except ValueError:
+            return build_view(err=t['expires_invalid'])
     
     if user_data['expires']:
         try: datetime.strptime(user_data['expires'],"%Y-%m-%d")
         except ValueError:
-            return build_view(err="Expires format မမှန်ပါ")
+            return build_view(err=t['expires_invalid'])
     
-    if user_data['port'] and not (6000 <= int(user_data['port']) <= 19999):
-        return build_view(err="Port အကွာအဝေး 6000-19999")
+    if user_data['port']:
+        try:
+            if not (6000 <= int(user_data['port']) <= 19999):
+                return build_view(err=t['port_range_invalid'])
+        except ValueError:
+            return build_view(err=t['port_range_invalid'])
     
     if not user_data['port']:
-        # Auto assign port
+        # Auto assign port - find the lowest unused port
         used_ports = {str(u.get('port', '')) for u in load_users() if u.get('port')}
-        used_ports |= get_udp_listen_ports()
         for p in range(6000, 20000):
             if str(p) not in used_ports:
                 user_data['port'] = str(p)
@@ -904,17 +1149,19 @@ def add_user():
     
     save_user(user_data)
     sync_config_passwords()
-    return build_view(msg="User saved successfully")
+    return build_view(msg=t['saved_msg'])
 
 @app.route("/delete", methods=["POST"])
 def delete_user_html():
+    lang = get_current_lang()
+    t = LANGUAGES.get(lang) or LANGUAGES['my']
     if not require_login(): return redirect(url_for('login'))
     user = (request.form.get("user") or "").strip()
-    if not user: return build_view(err="User လိုအပ်သည်")
+    if not user: return build_view(err=t['user_label'] + ' ' + t['user_pass_required'])
     
     delete_user(user)
     sync_config_passwords(mode="mirror")
-    return build_view(msg=f"Deleted: {user}")
+    return build_view(msg=t['deleted_msg'].format(user))
 
 @app.route("/suspend", methods=["POST"])
 def suspend_user():
@@ -925,6 +1172,7 @@ def suspend_user():
         db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (user,))
         db.commit()
         db.close()
+        sync_config_passwords()
     return redirect(url_for('index'))
 
 @app.route("/activate", methods=["POST"])
@@ -936,12 +1184,15 @@ def activate_user():
         db.execute('UPDATE users SET status = "active" WHERE username = ?', (user,))
         db.commit()
         db.close()
+        sync_config_passwords()
     return redirect(url_for('index'))
 
 # API Routes
 @app.route("/api/bulk", methods=["POST"])
 def bulk_operations():
-    if not require_login(): return jsonify({"ok": False, "err": "login required"}), 401
+    lang = get_current_lang()
+    t = LANGUAGES.get(lang) or LANGUAGES['my']
+    if not require_login(): return jsonify({"ok": False, "err": t['login_err']}), 401
     
     data = request.get_json() or {}
     action = data.get('action')
@@ -949,21 +1200,26 @@ def bulk_operations():
     
     db = get_db()
     try:
-        if action == 'extend':
-            for user in users:
-                db.execute('UPDATE users SET expires = date(expires, "+7 days") WHERE username = ?', (user,))
-        elif action == 'suspend':
-            for user in users:
-                db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (user,))
-        elif action == 'activate':
-            for user in users:
-                db.execute('UPDATE users SET status = "active" WHERE username = ?', (user,))
-        elif action == 'delete':
-            for user in users:
-                db.execute('DELETE FROM users WHERE username = ?', (user,))
+        affected_count = 0
+        for user in users:
+            user = user.strip()
+            if not user: continue
+            
+            if action == 'extend':
+                cursor = db.execute('UPDATE users SET expires = date(expires, "+7 days") WHERE username = ?', (user,))
+            elif action == 'suspend':
+                cursor = db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (user,))
+            elif action == 'activate':
+                cursor = db.execute('UPDATE users SET status = "active" WHERE username = ?', (user,))
+            elif action == 'delete':
+                cursor = db.execute('DELETE FROM users WHERE username = ?', (user,))
+            else:
+                return jsonify({"ok": False, "err": "Invalid action"}), 400
+            affected_count += cursor.rowcount
         
         db.commit()
-        return jsonify({"ok": True, "message": f"Bulk action {action} completed"})
+        sync_config_passwords()
+        return jsonify({"ok": True, "message": f"{affected_count} users processed with {action}"})
     finally:
         db.close()
 
@@ -972,12 +1228,14 @@ def export_users():
     if not require_login(): return "Unauthorized", 401
     
     users = load_users()
-    csv_data = "User,Password,Expires,Port,Bandwidth Used,Bandwidth Limit,Speed Limit,Status\n"
+    csv_data = "User,Password,Expires,Port,Bandwidth Used (GB),Bandwidth Limit (GB),Speed Limit (MB/s),Status\n"
     for u in users:
-        csv_data += f"{u['user']},{u['password']},{u.get('expires','')},{u.get('port','')},{u.get('bandwidth_used',0)},{u.get('bandwidth_limit',0)},{u.get('speed_limit',0)},{u.get('status','')}\n"
+        # Note: Bandwidth Limit is stored in Bytes in DB, displayed in GB here (u.get('bandwidth_limit') is in GB after load_users)
+        bw_limit_gb = round(u.get('bandwidth_limit', 0) / (1024 * 1024 * 1024), 2)
+        csv_data += f"{u['user']},{u['password']},{u.get('expires','')},{u.get('port','')},{u.get('bandwidth_used',0)},{bw_limit_gb},{u.get('speed_limit',0)},{u.get('status','')}\n"
     
     response = make_response(csv_data)
-    response.headers["Content-Disposition"] = "attachment; filename=users_export.csv"
+    response.headers["Content-Disposition"] = "attachment; filename=zivpn_users_export.csv"
     response.headers["Content-type"] = "text/csv"
     return response
 
@@ -993,28 +1251,38 @@ def generate_reports():
     try:
         if report_type == 'bandwidth':
             data = db.execute('''
-                SELECT username, SUM(bytes_used) as total_bytes 
+                SELECT username, ROUND(SUM(bytes_used) / (1024 * 1024 * 1024), 2) as total_gb_used 
                 FROM bandwidth_logs 
                 WHERE log_date BETWEEN ? AND ?
-                GROUP BY username
+                GROUP BY username ORDER BY total_gb_used DESC
             ''', (from_date or '2000-01-01', to_date or '2030-12-31')).fetchall()
-            return jsonify([dict(d) for d in data])
         elif report_type == 'users':
             data = db.execute('''
                 SELECT strftime('%Y-%m-%d', created_at) as date, COUNT(*) as new_users
                 FROM users 
                 WHERE created_at BETWEEN ? AND ?
-                GROUP BY date
+                GROUP BY date ORDER BY date
             ''', (from_date or '2000-01-01', to_date or '2030-12-31')).fetchall()
-            return jsonify([dict(d) for d in data])
+        elif report_type == 'revenue':
+            # Simple revenue report based on billing table
+            data = db.execute('''
+                SELECT plan_type, COUNT(*) as sales_count, SUM(amount) as estimated_revenue
+                FROM billing 
+                WHERE created_at BETWEEN ? AND ?
+                GROUP BY plan_type
+            ''', (from_date or '2000-01-01', to_date or '2030-12-31')).fetchall()
+        else:
+            return jsonify({"error": "Invalid report type"}), 400
+
+        return jsonify([dict(d) for d in data])
     finally:
         db.close()
-    
-    return jsonify({"message": "Report generated"})
 
 @app.route("/api/user/update", methods=["POST"])
 def update_user():
-    if not require_login(): return jsonify({"ok": False, "err": "login required"}), 401
+    lang = get_current_lang()
+    t = LANGUAGES.get(lang) or LANGUAGES['my']
+    if not require_login(): return jsonify({"ok": False, "err": t['login_err']}), 401
     
     data = request.get_json() or {}
     user = data.get('user')
@@ -1026,20 +1294,20 @@ def update_user():
         db.commit()
         db.close()
         sync_config_passwords()
-        return jsonify({"ok": True, "message": "User updated"})
+        return jsonify({"ok": True, "message": t['user_updated']})
     
     return jsonify({"ok": False, "err": "Invalid data"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
 PY
-
-# ===== API Service =====
+# ===== API Service (api.py) =====
 say "${Y}🔌 API Service ထည့်သွင်းနေပါတယ်...${Z}"
 cat >/etc/zivpn/api.py <<'PY'
 from flask import Flask, jsonify, request
 import sqlite3, datetime
 from datetime import timedelta
+import re, subprocess
 
 app = Flask(__name__)
 DATABASE_PATH = "/etc/zivpn/zivpn.db"
@@ -1075,36 +1343,43 @@ def get_user(username):
     user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
     db.close()
     if user:
-        return jsonify(dict(user))
+        # Convert Bytes to GB for easier display/handling if requested by external API client
+        user_dict = dict(user)
+        user_dict['bandwidth_used_gb'] = round(user_dict.pop('bandwidth_used') / (1024 * 1024 * 1024), 2)
+        user_dict['bandwidth_limit_gb'] = round(user_dict.pop('bandwidth_limit') / (1024 * 1024 * 1024), 2)
+        return jsonify(user_dict)
     return jsonify({"error": "User not found"}), 404
 
 @app.route('/api/v1/bandwidth/<username>', methods=['POST'])
 def update_bandwidth(username):
     data = request.get_json()
-    bytes_used = data.get('bytes_used', 0)
+    bytes_used = int(data.get('bytes_used', 0))
     
     db = get_db()
-    db.execute('''
-        UPDATE users 
-        SET bandwidth_used = bandwidth_used + ?, updated_at = CURRENT_TIMESTAMP 
-        WHERE username = ?
-    ''', (bytes_used, username))
-    
-    # Log bandwidth usage
-    db.execute('''
-        INSERT INTO bandwidth_logs (username, bytes_used) 
-        VALUES (?, ?)
-    ''', (username, bytes_used))
-    
-    db.commit()
-    db.close()
-    return jsonify({"message": "Bandwidth updated"})
+    try:
+        # Update bandwidth and check limits
+        db.execute('''
+            UPDATE users 
+            SET bandwidth_used = bandwidth_used + ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE username = ?
+        ''', (bytes_used, username))
+        
+        # Log bandwidth usage (in bytes)
+        db.execute('''
+            INSERT INTO bandwidth_logs (username, bytes_used) 
+            VALUES (?, ?)
+        ''', (username, bytes_used))
+        
+        db.commit()
+        return jsonify({"message": "Bandwidth updated"})
+    finally:
+        db.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8081)
 PY
 
-# ===== Telegram Bot =====
+# ===== Telegram Bot (bot.py) =====
 say "${Y}🤖 Telegram Bot Service ထည့်သွင်းနေပါတယ်...${Z}"
 cat >/etc/zivpn/bot.py <<'PY'
 import telegram
@@ -1116,7 +1391,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DATABASE_PATH = "/etc/zivpn/zivpn.db"
-BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8079105459:AAFNww6keJvnGJi4DpAHZGESBcL9ytFxqA4')
+# NOTE: User needs to update this token in web.env or manually in this file
+BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE') 
 
 def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
@@ -1128,7 +1404,7 @@ def start(update, context):
         '🤖 ZIVPN Bot မှ ကြိုဆိုပါတယ်!\n\n'
         'Commands:\n'
         '/stats - Server statistics\n'
-        '/users - User list\n'
+        '/users - User list (Top 20)\n'
         '/myinfo <username> - User information\n'
         '/help - Help message'
     )
@@ -1144,11 +1420,14 @@ def get_stats(update, context):
     ''').fetchone()
     db.close()
     
+    # Convert to GB
+    total_bw_gb = stats['total_bandwidth'] / (1024 * 1024 * 1024) if stats['total_bandwidth'] else 0
+    
     message = (
         f"📊 Server Statistics:\n"
         f"• Total Users: {stats['total_users']}\n"
         f"• Active Users: {stats['active_users']}\n"
-        f"• Bandwidth Used: {stats['total_bandwidth'] / 1024 / 1024 / 1024:.2f} GB"
+        f"• Bandwidth Used: {total_bw_gb:.2f} GB"
     )
     update.message.reply_text(message)
 
@@ -1161,9 +1440,9 @@ def get_users(update, context):
         update.message.reply_text("No users found")
         return
     
-    message = "👥 User List:\n"
+    message = "👥 User List (Top 20):\n"
     for user in users:
-        message += f"• {user['username']} - {user['status']} - Exp: {user['expires'] or 'Never'}\n"
+        message += f"• {user['username']} - {user['status'].upper()} - Exp: {user['expires'] or 'Never'}\n"
     
     update.message.reply_text(message)
 
@@ -1185,37 +1464,143 @@ def get_user_info(update, context):
         update.message.reply_text("User not found")
         return
     
+    # Convert to GB
+    bw_used_gb = user['bandwidth_used'] / (1024 * 1024 * 1024) if user['bandwidth_used'] else 0
+    bw_limit_gb = user['bandwidth_limit'] / (1024 * 1024 * 1024) if user['bandwidth_limit'] else 0
+    
     message = (
         f"👤 User: {user['username']}\n"
-        f"📊 Status: {user['status']}\n"
+        f"📊 Status: {user['status'].upper()}\n"
         f"⏰ Expires: {user['expires'] or 'Never'}\n"
-        f"📦 Bandwidth: {user['bandwidth_used'] / 1024 / 1024 / 1024:.2f} GB / {user['bandwidth_limit']} GB\n"
+        f"📦 Bandwidth: {bw_used_gb:.2f} GB / {bw_limit_gb:.2f} GB\n"
         f"⚡ Speed Limit: {user['speed_limit_up']} MB/s\n"
         f"🔗 Max Connections: {user['concurrent_conn']}"
     )
     update.message.reply_text(message)
 
 def main():
-    if BOT_TOKEN == '8079105459:AAFNww6keJvnGJi4DpAHZGESBcL9ytFxqA4':
-        logger.error("Please set TELEGRAM_BOT_TOKEN environment variable")
+    if BOT_TOKEN == 'YOUR_BOT_TOKEN_HERE':
+        logger.error("Please set TELEGRAM_BOT_TOKEN environment variable or update the bot.py file manually.")
+        # Do not exit, but let the service run so the user can see the error
         return
     
-    updater = Updater(BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
-    
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("stats", get_stats))
-    dp.add_handler(CommandHandler("users", get_users))
-    dp.add_handler(CommandHandler("myinfo", get_user_info))
-    
-    updater.start_polling()
-    updater.idle()
+    try:
+        updater = Updater(BOT_TOKEN, use_context=True)
+        dp = updater.dispatcher
+        
+        dp.add_handler(CommandHandler("start", start))
+        dp.add_handler(CommandHandler("stats", get_stats))
+        dp.add_handler(CommandHandler("users", get_users))
+        dp.add_handler(CommandHandler("myinfo", get_user_info))
+        
+        updater.start_polling()
+        updater.idle()
+    except Exception as e:
+        logger.error(f"Error starting Telegram bot: {e}")
 
 if __name__ == '__main__':
     main()
 PY
 
-# ===== Backup Script =====
+# ===== Cleanup Script (cleanup.py) - Handles Auto-Suspend and Conntrack Cleanup =====
+say "${Y}🧹 Auto Cleanup Script ထည့်သွင်းနေပါတယ်...${Z}"
+cat >/etc/zivpn/cleanup.py <<'PY'
+import sqlite3
+from datetime import datetime
+import subprocess
+import os
+import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+DATABASE_PATH = "/etc/zivpn/zivpn.db"
+CONFIG_FILE = "/etc/zivpn/config.json"
+
+def get_db():
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def run_cleanup_tasks():
+    logging.info("Starting ZIVPN cleanup tasks...")
+    db = get_db()
+    try:
+        # 1. Auto Suspend Expired Users
+        now_date = datetime.now().strftime("%Y-%m-%d")
+        logging.info(f"Checking for expired users before {now_date}...")
+        
+        # Select users who have expired but are still active
+        expired_users = db.execute('''
+            SELECT username, port FROM users
+            WHERE status = 'active' AND expires IS NOT NULL AND expires < ?
+        ''', (now_date,)).fetchall()
+        
+        for user in expired_users:
+            username = user['username']
+            port = user['port']
+            
+            # Update status in DB
+            db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (username,))
+            logging.warning(f"User {username} expired and set to 'suspended'.")
+            
+            # Forcefully clear conntrack entry to drop current connection
+            if port:
+                try:
+                    subprocess.run(f"conntrack -D -p udp --dport {port} --orig-port {port}", shell=True, check=False, capture_output=True)
+                    logging.info(f"Cleared conntrack for port {port} (user {username}).")
+                except Exception as e:
+                    logging.error(f"Failed to clear conntrack for {username}: {e}")
+
+        db.commit()
+        logging.info(f"Total {len(expired_users)} users suspended.")
+
+        # 2. Bandwidth Limit Suspend/Reset (If over limit and active)
+        # Convert GB limit back to Bytes for comparison
+        over_limit_users = db.execute('''
+            SELECT username, port FROM users
+            WHERE status = 'active' AND bandwidth_limit > 0 AND bandwidth_used >= bandwidth_limit
+        ''').fetchall()
+        
+        for user in over_limit_users:
+            username = user['username']
+            port = user['port']
+            db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (username,))
+            logging.warning(f"User {username} hit bandwidth limit and set to 'suspended'.")
+            if port:
+                subprocess.run(f"conntrack -D -p udp --dport {port} --orig-port {port}", shell=True, check=False, capture_output=True)
+
+        db.commit()
+        logging.info(f"Total {len(over_limit_users)} users suspended for hitting bandwidth limit.")
+
+        # 3. Trigger ZIVPN config sync and restart to remove passwords of suspended users
+        from web import sync_config_passwords
+        # Temporarily change cwd to /etc/zivpn so the import works
+        original_cwd = os.getcwd()
+        os.chdir("/etc/zivpn")
+        try:
+            # Re-import web module in case of updates, then run sync
+            import importlib
+            import web
+            importlib.reload(web)
+            web.sync_config_passwords()
+            logging.info("ZIVPN config synced and server restarted.")
+        except Exception as e:
+            logging.error(f"Failed to sync config and restart ZIVPN: {e}")
+        finally:
+            os.chdir(original_cwd)
+
+
+    except Exception as e:
+        logging.error(f"An error occurred during cleanup: {e}")
+    finally:
+        db.close()
+
+if __name__ == '__main__':
+    run_cleanup_tasks()
+PY
+
+# ===== Backup Script (backup.py) - Unchanged but included for completeness =====
 say "${Y}💾 Backup System ထည့်သွင်းနေပါတယ်...${Z}"
 cat >/etc/zivpn/backup.py <<'PY'
 import sqlite3, shutil, datetime, os, gzip
@@ -1252,7 +1637,7 @@ PY
 # ===== systemd Services =====
 say "${Y}🧰 systemd services များ ထည့်သွင်းနေပါတယ်...${Z}"
 
-# ZIVPN Service
+# ZIVPN Service - Unchanged
 cat >/etc/systemd/system/zivpn.service <<'EOF'
 [Unit]
 Description=ZIVPN UDP Server
@@ -1274,7 +1659,7 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 EOF
 
-# Web Panel Service
+# Web Panel Service - Unchanged
 cat >/etc/systemd/system/zivpn-web.service <<'EOF'
 [Unit]
 Description=ZIVPN Web Panel
@@ -1292,7 +1677,7 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 
-# API Service
+# API Service - Unchanged
 cat >/etc/systemd/system/zivpn-api.service <<'EOF'
 [Unit]
 Description=ZIVPN API Server
@@ -1310,7 +1695,7 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 
-# Backup Service (Daily)
+# Backup Service Timer - Unchanged
 cat >/etc/systemd/system/zivpn-backup.service <<'EOF'
 [Unit]
 Description=ZIVPN Backup Service
@@ -1339,6 +1724,36 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
+# NEW: Cleanup Service and Timer
+cat >/etc/systemd/system/zivpn-cleanup.service <<'EOF'
+[Unit]
+Description=ZIVPN Auto Cleanup and Suspend Service
+After=zivpn-web.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/etc/zivpn
+ExecStart=/usr/bin/python3 /etc/zivpn/cleanup.py
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat >/etc/systemd/system/zivpn-cleanup.timer <<'EOF'
+[Unit]
+Description=Hourly ZIVPN Auto Cleanup
+Requires=zivpn-cleanup.service
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+
 # ===== Networking Setup =====
 echo -e "${Y}🌐 Network Configuration ပြုလုပ်နေပါတယ်...${Z}"
 sysctl -w net.ipv4.ip_forward=1 >/dev/null
@@ -1348,7 +1763,6 @@ IFACE=$(ip -4 route ls | awk '/default/ {print $5; exit}')
 [ -n "${IFACE:-}" ] || IFACE=eth0
 
 # DNAT Rules
-# Flush existing rules and re-add NAT/MASQUERADE and DNAT for port range to 5667
 iptables -t nat -F
 iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j DNAT --to-destination :5667
 iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
@@ -1370,30 +1784,27 @@ systemctl enable --now zivpn.service
 systemctl enable --now zivpn-web.service
 systemctl enable --now zivpn-api.service
 systemctl enable --now zivpn-backup.timer
+systemctl enable --now zivpn-cleanup.timer # Enable new cleanup timer
 
-# Initial backup
+# Initial cleanup and backup
 python3 /etc/zivpn/backup.py
+python3 /etc/zivpn/cleanup.py
 
 # ===== Completion Message =====
 IP=$(hostname -I | awk '{print $1}')
-echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition Setup Complete!${Z}"
+echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition Setup Complete (v2.0)!${Z}"
 echo -e "${C}🌐 Web Panel:${Z} ${Y}http://$IP:8080${Z}"
-echo -e "${C}👀 Admin Login:${Z} ${Y}User: ${WEB_USER}, Pass: ${WEB_PASS}${Z}"
+echo -e "  ${M}Admin/Pass:${Z} ${WEB_USER}/${WEB_PASS}"
 echo -e "${C}🔌 API Server:${Z} ${Y}http://$IP:8081${Z}"
 echo -e "${C}📊 Database:${Z} ${Y}/etc/zivpn/zivpn.db${Z}"
-echo -e "${C}💾 Backups:${Z} ${Y}/etc/zivpn/backups/${Z}"
 echo -e "\n${M}📋 Services:${Z}"
 echo -e "  ${Y}systemctl status zivpn${Z}      - VPN Server"
-echo -e "  ${Y}systemctl status zivpn-web${Z}  - Web Panel (FIXED for Status)"
+echo -e "  ${Y}systemctl status zivpn-web${Z}  - Web Panel"
 echo -e "  ${Y}systemctl status zivpn-api${Z}  - API Server"
-echo -e "  ${Y}systemctl list-timers${Z}       - Backup Timers"
-echo -e "\n${G}🎯 Features Enabled:${Z}"
-echo -e "  ✓ User Bandwidth Limits"
-echo -e "  ✓ Speed Control"
-echo -e "  ✓ Connection Limits"
-echo -e "  ✓ Bulk Operations"
-echo -e "  ✓ Reporting & Analytics"
-echo -e "  ✓ Automated Backups"
-echo -e "  ✓ REST API"
-echo -e "  ✓ Telegram Bot Ready"
+echo -e "  ${Y}systemctl list-timers${Z}       - (Daily Backup, Hourly Cleanup)"
+echo -e "\n${G}🎯 New Features Enabled:${Z}"
+echo -e "  ✓ Enhanced UI/UX with Dark/Light Mode"
+echo -e "  ✓ Myanmar/English Language Support"
+echo -e "  ✓ Accurate Online/Offline Status (via conntrack/DB status)"
+echo -e "  ✓ Automated Hourly Cleanup & Expiry Suspend"
 echo -e "$LINE"
