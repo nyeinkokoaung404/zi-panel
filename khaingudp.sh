@@ -18,16 +18,20 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 wait_for_apt() {
-  echo -e "${Y}⏳ wait apt 3 min ${Z}"
-  for _ in $(seq 1 60); do
-    if pgrep -x apt-get >/dev/null || pgrep -x apt >/dev/null || pgrep -f 'apt.systemd.daily' >/dev/null || pgrep -x unattended-upgrade >/dev/null; then
-      sleep 5
-    else return 0; fi
-  done
-  echo -e "${Y}⚠️ apt timers ကို ယာယီရပ်နေပါတယ်${Z}"
-  systemctl stop --now unattended-upgrades.service 2>/dev/null || true
-  systemctl stop --now apt-daily.service apt-daily.timer 2>/dev/null || true
-  systemctl stop --now apt-daily-upgrade.service apt-daily-upgrade.timer 2>/dev/null || true
+  echo -e "${Y}⏳ wait apt 3 min ${Z}"
+  for _ in $(seq 1 60);
+  do
+    if pgrep -x apt-get >/dev/null || pgrep -x apt >/dev/null || pgrep -f 'apt.systemd.daily' >/dev/null || \
+pgrep -x unattended-upgrade >/dev/null; then
+      sleep 5
+    else
+      return 0
+    fi
+  done
+  echo -e "${Y}⚠️ apt timers ကို ယာယီရပ်နေပါတယ်${Z}"
+  systemctl stop --now unattended-upgrades.service 2>/dev/null || true
+  systemctl stop --now apt-daily.service apt-daily.timer 2>/dev/null || true
+  systemctl stop --now apt-daily-upgrade.service apt-daily-upgrade.timer 2>/dev/null || true
 }
 
 apt_guard_start(){
