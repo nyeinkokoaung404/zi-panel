@@ -61,7 +61,7 @@ apt-get install -y curl ufw jq python3 python3-flask python3-pip python3-venv ip
 }
 
 # Additional Python packages
-pip3 install requests python-dateutil python-telegram-bot >/dev/null 2>&1 || true
+pip3 install requests python-dateutil python-dotenv python-telegram-bot >/dev/null 2>&1 || true
 apt_guard_end
 
 # ===== Paths =====
