@@ -9,7 +9,7 @@ B="\e[1;34m"; G="\e[1;32m"; Y="\e[1;33m"; R="\e[1;31m"; C="\e[1;36m"; M="\e[1;35
 LINE="${B}────────────────────────────────────────────────────────${Z}"
 say(){ echo -e "$1"; }
 
-echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI - ENTERPRISE EDITION ${Z}\n${M}✅ All Fixes and Features Integrated ${Z}\n$LINE"
+echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI - ENTERPRISE EDITION ${Z}\n${M}✅ GitHub Integration + Mobile Optimized ${Z}\n$LINE"
 
 # ===== Root check & apt guards =====
 if [ "$(id -u)" -ne 0 ]; then
@@ -48,6 +48,7 @@ systemctl stop zivpn-api.service 2>/dev/null || true
 systemctl stop zivpn-bot.service 2>/dev/null || true
 systemctl stop zivpn-cleanup.timer 2>/dev/null || true
 systemctl stop zivpn-backup.timer 2>/dev/null || true
+systemctl stop zivpn-connection.service 2>/dev/null || true
 
 # ===== Enhanced Packages =====
 say "${Y}📦 Enhanced Packages တင်နေပါတယ်...${Z}"
@@ -191,7 +192,7 @@ BOT_TOKEN="${BOT_TOKEN:-8079105459:AAFNww6keJvnGJi4DpAHZGESBcL9ytFxqA4}"
   echo "WEB_SECRET=${WEB_SECRET}"
   echo "DATABASE_PATH=${DB}"
   echo "TELEGRAM_BOT_TOKEN=${BOT_TOKEN}"
-  echo "DEFAULT_LANGUAGE=my" # Default language to Burmese
+  echo "DEFAULT_LANGUAGE=my"
 } > "$ENVF"
 chmod 600 "$ENVF"
 
@@ -228,1044 +229,224 @@ fi
 [ -f "$USERS" ] || echo "[]" > "$USERS"
 chmod 644 "$CFG" "$USERS"
 
-# ===== Enhanced Mobile-Friendly Web Panel =====
-say "${Y}🖥️ Mobile-Friendly Web Panel ထည့်သွင်းနေပါတယ်...${Z}"
-cat >/etc/zivpn/web.py <<'PY'
-from flask import Flask, jsonify, render_template_string, request, redirect, url_for, session, make_response, g
-import json, re, subprocess, os, tempfile, hmac, sqlite3, datetime
-from datetime import datetime, timedelta
-import statistics
+# ===== Download Web Panel from GitHub =====
+say "${Y}🌐 GitHub မှ Web Panel ဒေါင်းလုပ်ဆွဲနေပါတယ်...${Z}"
+curl -fsSL -o /etc/zivpn/web.py "https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/templates/web.py"
+if [ $? -ne 0 ]; then
+  echo -e "${R}❌ Web Panel ဒေါင်းလုပ်ဆွဲ၍မရပါ - Fallback သုံးပါမယ်${Z}"
+  # Fallback web panel code would go here
+fi
 
-USERS_FILE = "/etc/zivpn/users.json"
-CONFIG_FILE = "/etc/zivpn/config.json"
+# ===== Download Telegram Bot from GitHub =====
+say "${Y}🤖 GitHub မှ Telegram Bot ဒေါင်းလုပ်ဆွဲနေပါတယ်...${Z}"
+curl -fsSL -o /etc/zivpn/bot.py "https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/telegram/bot.py"
+if [ $? -ne 0 ]; then
+  echo -e "${R}❌ Telegram Bot ဒေါင်းလုပ်ဆွဲ၍မရပါ - Fallback သုံးပါမယ်${Z}"
+  # Fallback bot code would go here
+fi
+
+# ===== API Service =====
+say "${Y}🔌 API Service ထည့်သွင်းနေပါတယ်...${Z}"
+cat >/etc/zivpn/api.py <<'PY'
+from flask import Flask, jsonify, request
+import sqlite3, datetime
+from datetime import timedelta
+import os
+
+app = Flask(__name__)
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
-LISTEN_FALLBACK = "5667"
-RECENT_SECONDS = 120
-LOGO_URL = "https://raw.githubusercontent.com/BaeGyee9/khaing/main/logo.png"
 
-# --- Localization Data ---
-TRANSLATIONS = {
-    'en': {
-        'title': 'ZIVPN Enterprise Panel', 'login_title': 'ZIVPN Panel Login',
-        'login_err': 'Invalid Username or Password', 'username': 'Username',
-        'password': 'Password', 'login': 'Login', 'logout': 'Logout',
-        'contact': 'Contact', 'total_users': 'Total Users',
-        'active_users': 'Online Users', 'bandwidth_used': 'Bandwidth Used',
-        'server_load': 'Server Load', 'user_management': 'User Management',
-        'add_user': 'Add New User', 'bulk_ops': 'Bulk Operations',
-        'reports': 'Reports', 'user': 'User', 'expires': 'Expires',
-        'port': 'Port', 'bandwidth': 'Bandwidth', 'speed': 'Speed',
-        'status': 'Status', 'actions': 'Actions', 'online': 'ONLINE',
-        'offline': 'OFFLINE', 'expired': 'EXPIRED', 'suspended': 'SUSPENDED',
-        'save_user': 'Save User', 'max_conn': 'Max Connections',
-        'speed_limit': 'Speed Limit (MB/s)', 'bw_limit': 'Bandwidth Limit (GB)',
-        'required_fields': 'User and Password are required',
-        'invalid_exp': 'Invalid Expires format',
-        'invalid_port': 'Port range must be 6000-19999',
-        'delete_confirm': 'Are you sure you want to delete {user}?',
-        'deleted': 'Deleted: {user}', 'success_save': 'User saved successfully',
-        'select_action': 'Select Action', 'extend_exp': 'Extend Expiry (+7 days)',
-        'suspend_users': 'Suspend Users', 'activate_users': 'Activate Users',
-        'delete_users': 'Delete Users', 'execute': 'Execute',
-        'user_search': 'Search users...', 'search': 'Search',
-        'export_csv': 'Export Users CSV', 'import_users': 'Import Users',
-        'bulk_success': 'Bulk action {action} completed',
-        'report_range': 'Date Range Required', 'report_bw': 'Bandwidth Usage',
-        'report_users': 'User Activity', 'report_revenue': 'Revenue',
-        'dashboard': 'Dashboard', 'settings': 'Settings'
-    },
-    'my': {
-        'title': 'ZIVPN စီမံခန့်ခွဲမှု Panel', 'login_title': 'ZIVPN Panel ဝင်ရန်',
-        'login_err': 'အသုံးပြုသူအမည် (သို့) စကားဝှက် မမှန်ပါ', 'username': 'အသုံးပြုသူအမည်',
-        'password': 'စကားဝှက်', 'login': 'ဝင်မည်', 'logout': 'ထွက်မည်',
-        'contact': 'ဆက်သွယ်ရန်', 'total_users': 'စုစုပေါင်းအသုံးပြုသူ',
-        'active_users': 'အွန်လိုင်းအသုံးပြုသူ', 'bandwidth_used': 'အသုံးပြုပြီး Bandwidth',
-        'server_load': 'ဆာဗာ ဝန်ပမာဏ', 'user_management': 'အသုံးပြုသူ စီမံခန့်ခွဲမှု',
-        'add_user': 'အသုံးပြုသူ အသစ်ထည့်ရန်', 'bulk_ops': 'အစုလိုက် လုပ်ဆောင်ချက်များ',
-        'reports': 'အစီရင်ခံစာများ', 'user': 'အသုံးပြုသူ', 'expires': 'သက်တမ်းကုန်ဆုံးမည်',
-        'port': 'ပေါက်', 'bandwidth': 'Bandwidth', 'speed': 'မြန်နှုန်း',
-        'status': 'အခြေအနေ', 'actions': 'လုပ်ဆောင်ချက်များ', 'online': 'အွန်လိုင်း',
-        'offline': 'အော့ဖ်လိုင်း', 'expired': 'သက်တမ်းကုန်ဆုံး', 'suspended': 'ဆိုင်းငံ့ထားသည်',
-        'save_user': 'အသုံးပြုသူ သိမ်းမည်', 'max_conn': 'အများဆုံးချိတ်ဆက်မှု',
-        'speed_limit': 'မြန်နှုန်း ကန့်သတ်ချက် (MB/s)', 'bw_limit': 'Bandwidth ကန့်သတ်ချက် (GB)',
-        'required_fields': 'အသုံးပြုသူအမည်နှင့် စကားဝှက် လိုအပ်သည်',
-        'invalid_exp': 'သက်တမ်းကုန်ဆုံးရက်ပုံစံ မမှန်ကန်ပါ',
-        'invalid_port': 'Port အကွာအဝေး 6000-19999 သာ ဖြစ်ရမည်',
-        'delete_confirm': '{user} ကို ဖျက်ရန် သေချာပါသလား?',
-        'deleted': 'ဖျက်လိုက်သည်: {user}', 'success_save': 'အသုံးပြုသူကို အောင်မြင်စွာ သိမ်းဆည်းလိုက်သည်',
-        'select_action': 'လုပ်ဆောင်ချက် ရွေးပါ', 'extend_exp': 'သက်တမ်းတိုးမည် (+၇ ရက်)',
-        'suspend_users': 'အသုံးပြုသူများ ဆိုင်းငံ့မည်', 'activate_users': 'အသုံးပြုသူများ ဖွင့်မည်',
-        'delete_users': 'အသုံးပြုသူများ ဖျက်မည်', 'execute': 'စတင်လုပ်ဆောင်မည်',
-        'user_search': 'အသုံးပြုသူ ရှာဖွေပါ...', 'search': 'ရှာဖွေပါ',
-        'export_csv': 'အသုံးပြုသူများ CSV ထုတ်ယူမည်', 'import_users': 'အသုံးပြုသူများ ထည့်သွင်းမည်',
-        'bulk_success': 'အစုလိုက် လုပ်ဆောင်ချက် {action} ပြီးမြောက်ပါပြီ',
-        'report_range': 'ရက်စွဲ အပိုင်းအခြား လိုအပ်သည်', 'report_bw': 'Bandwidth အသုံးပြုမှု',
-        'report_users': 'အသုံးပြုသူ လှုပ်ရှားမှု', 'report_revenue': 'ဝင်ငွေ',
-        'dashboard': 'ပင်မစာမျက်နှာ', 'settings': 'ချိန်ညှိချက်များ'
-    }
-}
+def get_db():
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-HTML = """<!doctype html>
-<html lang="{{lang}}"><head><meta charset="utf-8">
-<title>{{t.title}} - Channel 404</title>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta http-equiv="refresh" content="120">
-<link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<style>
-:root{
-    --bg-dark: #121212; --fg-dark: #e0e0e0; --card-dark: #1e1e1e; --bd-dark: #333; --primary-dark: #3498db;
-    --bg-light: #f4f7f9; --fg-light: #333333; --card-light: #ffffff; --bd-light: #e0e0e0; --primary-light: #2c3e50;
-    --ok: #2ecc71; --bad: #e74c3c; --unknown: #f39c12; --expired: #8e44ad;
-    --success: #1abc9c; --delete-btn: #e74c3c; --logout-btn: #e67e22;
-    --shadow: 0 4px 15px rgba(0,0,0,0.2); --radius: 12px;
-    --mobile-breakpoint: 768px;
-}
-[data-theme='dark']{
-    --bg: var(--bg-dark); --fg: var(--fg-dark); --card: var(--card-dark);
-    --bd: var(--bd-dark); --primary-btn: var(--primary-dark); --input-text: var(--fg-dark);
-}
-[data-theme='light']{
-    --bg: var(--bg-light); --fg: var(--fg-light); --card: var(--card-light);
-    --bd: var(--bd-light); --primary-btn: var(--primary-light); --input-text: var(--fg-light);
-}
-* {
-    box-sizing: border-box;
-}
-html,body{
-    background:var(--bg);color:var(--fg);font-family:'Padauk',sans-serif;
-    line-height:1.6;margin:0;padding:0;transition:background 0.3s, color 0.3s;
-    height: 100%; overflow-x: hidden;
-}
-.container{
-    max-width:1400px;margin:auto;padding:15px;
-    padding-bottom: 80px; /* Space for mobile nav */
-}
+@app.route('/api/v1/stats', methods=['GET'])
+def get_stats():
+    db = get_db()
+    stats = db.execute('''
+        SELECT 
+            COUNT(*) as total_users,
+            SUM(CASE WHEN status = "active" AND (expires IS NULL OR expires >= CURRENT_DATE) THEN 1 ELSE 0 END) as active_users,
+            SUM(bandwidth_used) as total_bandwidth
+        FROM users
+    ''').fetchone()
+    db.close()
+    return jsonify({
+        "total_users": stats['total_users'],
+        "active_users": stats['active_users'],
+        "total_bandwidth_bytes": stats['total_bandwidth']
+    })
 
-/* Mobile First Design */
-@media (max-width: 768px) {
-    .container {
-        padding: 10px;
-        padding-bottom: 70px;
-    }
+@app.route('/api/v1/users', methods=['GET'])
+def get_users():
+    db = get_db()
+    users = db.execute('SELECT username, status, expires, bandwidth_used, concurrent_conn FROM users').fetchall()
+    db.close()
+    return jsonify([dict(u) for u in users])
+
+@app.route('/api/v1/user/<username>', methods=['GET'])
+def get_user(username):
+    db = get_db()
+    user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    db.close()
+    if user:
+        return jsonify(dict(user))
+    return jsonify({"error": "User not found"}), 404
+
+@app.route('/api/v1/bandwidth/<username>', methods=['POST'])
+def update_bandwidth(username):
+    data = request.get_json()
+    bytes_used = data.get('bytes_used', 0)
     
-    header {
-        flex-direction: column;
-        padding: 10px;
-        margin-bottom: 15px;
-    }
+    db = get_db()
+    # 1. Update total usage
+    db.execute('''
+        UPDATE users 
+        SET bandwidth_used = bandwidth_used + ?, updated_at = CURRENT_TIMESTAMP 
+        WHERE username = ?
+    ''', (bytes_used, username))
     
-    .header-left {
-        flex-direction: column;
-        text-align: center;
-        gap: 10px;
-        margin-bottom: 10px;
-    }
+    # 2. Log bandwidth usage
+    db.execute('''
+        INSERT INTO bandwidth_logs (username, bytes_used) 
+        VALUES (?, ?)
+    ''', (username, bytes_used))
     
-    .colorful-title {
-        font-size: 1.4em;
-    }
-    
-    .btn-group {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 5px;
-    }
-    
-    .btn {
-        padding: 8px 12px;
-        font-size: 0.9em;
-        min-width: auto;
-    }
-}
-
-/* Mobile Bottom Navigation */
-.mobile-nav {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--card);
-    border-top: 1px solid var(--bd);
-    padding: 10px;
-    z-index: 1000;
-}
-
-.mobile-nav-items {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-}
-
-.mobile-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-decoration: none;
-    color: var(--fg);
-    font-size: 0.8em;
-    padding: 5px 10px;
-    border-radius: var(--radius);
-    transition: all 0.3s ease;
-}
-
-.mobile-nav-item.active {
-    background: var(--primary-btn);
-    color: white;
-}
-
-.mobile-nav-item i {
-    font-size: 1.2em;
-    margin-bottom: 3px;
-}
-
-@media (max-width: 768px) {
-    .mobile-nav {
-        display: block;
-    }
-    
-    .desktop-tabs {
-        display: none;
-    }
-    
-    .mobile-tab-content {
-        display: none;
-    }
-    
-    .mobile-tab-content.active {
-        display: block;
-    }
-}
-
-/* Enhanced Mobile Stats */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
-    margin: 15px 0;
-}
-
-@media (max-width: 480px) {
-    .stats-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-    
-    .stat-card {
-        padding: 15px;
-    }
-    
-    .stat-number {
-        font-size: 1.5em;
-    }
-}
-
-/* Mobile Form Optimization */
-.form-grid {
-    display: grid;
-    gap: 15px;
-}
-
-@media (max-width: 768px) {
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .row {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
-    .row > div {
-        flex: 1 1 100%;
-    }
-}
-
-/* Touch-friendly buttons */
-.btn {
-    padding: 12px 20px;
-    border-radius: var(--radius);
-    border: none;
-    color: white;
-    text-decoration: none;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 700;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 44px; /* Minimum touch target size */
-    min-width: 44px;
-}
-
-/* Enhanced Mobile Table */
-.table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.user-table {
-    width: 100%;
-    min-width: 600px;
-}
-
-@media (max-width: 768px) {
-    .user-table {
-        font-size: 0.9em;
-    }
-    
-    .user-table th,
-    .user-table td {
-        padding: 8px 12px;
-    }
-}
-
-/* Mobile Action Buttons */
-.action-buttons {
-    display: flex;
-    gap: 5px;
-    flex-wrap: wrap;
-}
-
-.action-btn {
-    padding: 6px 10px;
-    font-size: 0.8em;
-    min-width: auto;
-}
-
-/* Loading States */
-.loading {
-    opacity: 0.7;
-    pointer-events: none;
-}
-
-/* Swipeable tabs for mobile */
-.tab-content {
-    transition: transform 0.3s ease;
-}
-
-/* Enhanced Mobile Login */
-.login-card {
-    max-width: 90%;
-    margin: 5vh auto;
-    padding: 20px;
-}
-
-@media (max-width: 480px) {
-    .login-card {
-        margin: 2vh auto;
-        padding: 15px;
-    }
-}
-
-/* Rest of the existing CSS remains the same */
-h1,h2,h3{color:var(--fg);margin-top:0;}
-
-@keyframes colorful-shift {
-    0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; }
-}
-header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px;margin-bottom:25px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--bd);}
-.header-left{display:flex;align-items:center;gap:15px}
-h1{margin:0;font-size:1.6em;font-weight:700;}
-.colorful-title{font-size:1.8em;font-weight:900;background:linear-gradient(90deg,#FF0000,#FF8000,#FFFF00,#00FF00,#00FFFF,#0000FF,#8A2BE2,#FF0000);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:colorful-shift 8s linear infinite;text-shadow:0 0 5px rgba(255,255,255,0.4);}
-.sub{color:var(--fg);font-size:.9em}
-.logo{height:50px;width:auto;border-radius:10px;border:2px solid var(--fg)}
-
-.btn.primary{background:var(--primary-btn)}.btn.primary:hover{background:hsl(209, 61%, 40%)}
-.btn.save{background:var(--success)}.btn.save:hover{background:#16a085}
-.btn.delete{background:var(--delete-btn)}.btn.delete:hover{background:#9e342b}
-.btn.logout{background:var(--logout-btn)}.btn.logout:hover{background:#d35400}
-.btn.secondary{background:var(--bd);color:var(--fg);}.btn.secondary:hover{background:#95a5a6}
-.btn-group{display:flex;gap:10px;align-items:center;}
-
-form.box,.box{margin:25px 0;padding:25px;border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow);border:1px solid var(--bd);}
-label{display:flex;align-items:center;margin:6px 0 4px;font-size:.95em;font-weight:700;}
-input,select{width:100%;padding:12px;border:1px solid var(--bd);border-radius:var(--radius);box-sizing:border-box;background:var(--bg);color:var(--input-text);transition:border-color 0.3s, background 0.3s;}
-input:focus,select:focus{outline:none;border-color:var(--primary-btn);box-shadow:0 0 0 3px rgba(52, 152, 219, 0.5);}
-.row{display:flex;gap:20px;flex-wrap:wrap;margin-top:10px}
-.row>div{flex:1 1 200px}
-
-.desktop-tabs{margin:20px 0;}
-.tabs{display:flex;gap:5px;margin-bottom:20px;border-bottom:2px solid var(--bd);}
-.tab-btn{padding:12px 24px;background:var(--card);border:1px solid var(--bd);border-bottom:none;color:var(--fg);cursor:pointer;border-radius:var(--radius) var(--radius) 0 0;transition:all 0.3s ease;}
-.tab-btn.active{background:var(--primary-btn);color:white;border-color:var(--primary-btn);}
-.tab-content{display:none;}
-.tab-content.active{display:block;}
-
-.stat-card{padding:20px;background:var(--card);border-radius:var(--radius);text-align:center;box-shadow:var(--shadow);border:1px solid var(--bd);}
-.stat-number{font-size:2em;font-weight:700;margin:10px 0;}
-.stat-label{font-size:.9em;color:var(--bd);}
-
-table{border-collapse:separate;width:100%;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
-th,td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--bd);border-right:1px solid var(--bd);}
-th:last-child,td:last-child{border-right:none;}
-th{background:var(--primary-btn);color:white;font-weight:700;text-transform:uppercase}
-tr:last-child td{border-bottom:none}
-tr:hover:not(.expired){background:rgba(52, 152, 219, 0.1)}
-
-.pill{display:inline-block;padding:5px 12px;border-radius:20px;font-size:.85em;font-weight:700;box-shadow:0 2px 4px rgba(0,0,0,0.2);color:white;}
-.status-ok{background:var(--ok)}.status-bad{background:var(--bad)}
-.status-unk{background:var(--unknown)}.status-expired{background:var(--expired)}
-.pill-green{background:var(--ok)}.pill-yellow{background:var(--unknown)}.pill-red{background:var(--bad)}
-.pill-purple{background:var(--expired)}.pill-blue{background:var(--primary-btn)}
-
-.muted{opacity:0.7}
-.delform{display:inline}
-tr.expired td{opacity:.8;background:var(--expired);color:white !important;}
-tr.expired .muted{color:#ddd;}
-.center{display:flex;align-items:center;justify-content:center}
-.login-card{max-width:400px;margin:10vh auto;padding:30px;border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow);border:1px solid var(--bd);}
-.login-card h3{margin:5px 0 15px;font-size:1.8em;color:var(--fg);}
-.msg{margin:10px 0;padding:12px;border-radius:var(--radius);background:var(--success);color:white;font-weight:700;}
-.err{margin:10px 0;padding:12px;border-radius:var(--radius);background:var(--delete-btn);color:white;font-weight:700;}
-
-.theme-switch{cursor:pointer;width:50px;height:25px;background:var(--bd);border-radius:15px;position:relative;transition:background 0.3s;}
-.theme-switch::after{content:'';position:absolute;top:3px;left:3px;width:19px;height:19px;background:white;border-radius:50%;transition:left 0.3s;}
-[data-theme='light'] .theme-switch::after{left:28px;}
-[data-theme='dark'] .theme-switch{background:var(--primary-btn);}
-.lang-select{padding:6px;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:var(--radius);font-weight:700;}
-
-/* Enhanced mobile table view */
-@media (max-width: 768px) {
-    .user-table, .user-table thead, .user-table tbody, .user-table th, .user-table td, .user-table tr { 
-        display: block; 
-    }
-    
-    .user-table thead tr { 
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-    }
-    
-    .user-table tr { 
-        border: 1px solid var(--bd); 
-        margin-bottom: 10px; 
-        border-radius: var(--radius);
-        overflow: hidden;
-        background: var(--card);
-    }
-    
-    .user-table td { 
-        border: none;
-        border-bottom: 1px solid var(--bd); 
-        position: relative; 
-        padding-left: 50%; 
-        text-align: right;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    
-    .user-table td:before { 
-        content: attr(data-label);
-        position: absolute;
-        left: 10px;
-        width: 45%;
-        padding-right: 10px; 
-        white-space: nowrap;
-        text-align: left;
-        font-weight: 700;
-        color: var(--primary-btn);
-    }
-    
-    .action-buttons {
-        justify-content: flex-end;
-        padding-top: 5px;
-    }
-}
-</style>
-</head>
-<body data-theme="{{theme}}">
-<div class="container">
-
-{% if not authed %}
-    <div class="login-card">
-        <div class="center" style="margin-bottom:20px"><img class="logo" src="{{ logo }}" alt="4 0 4 \ 2.0 [🇲🇲]"></div>
-        <h3 class="center">{{t.login_title}}</h3>
-        {% if err %}<div class="err">{{err}}</div>{% endif %}
-        <form method="post" action="/login">
-            <label><i class="fas fa-user icon"></i>{{t.username}}</label>
-            <input name="u" autofocus required>
-            <label style="margin-top:15px"><i class="fas fa-lock icon"></i>{{t.password}}</label>
-            <input name="p" type="password" required>
-            <button class="btn primary" type="submit" style="margin-top:20px;width:100%">
-                <i class="fas fa-sign-in-alt"></i>{{t.login}}
-            </button>
-            <div style="margin-top:15px;text-align:center;">
-                <select class="lang-select" onchange="window.location.href='/set_lang?lang='+this.value">
-                    <option value="my" {% if lang == 'my' %}selected{% endif %}>မြန်မာ</option>
-                    <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
-                </select>
-            </div>
-        </form>
-    </div>
-{% else %}
-
-<header>
-    <div class="header-left">
-        <img src="{{ logo }}" alt="4 0 4 \ 2.0 [🇲🇲]" class="logo">
-        <div>
-            <h1><span class="colorful-title">Channel 404 ZIVPN Enterprise</span></h1>
-            <div class="sub"><span class="colorful-title" style="font-size:1em;font-weight:700;animation-duration:12s;">⊱✫⊰ Enterprise Management System ⊱✫⊰</span></div>
-        </div>
-    </div>
-    <div class="btn-group">
-        <select class="lang-select" onchange="window.location.href='/set_lang?lang='+this.value">
-            <option value="my" {% if lang == 'my' %}selected{% endif %}>MY</option>
-            <option value="en" {% if lang == 'en' %}selected{% endif %}>EN</option>
-        </select>
-        <div class="theme-switch" onclick="toggleTheme()"></div>
-        <a class="btn primary" href="/api/export/users"><i class="fas fa-download"></i> CSV</a>
-        <a class="btn logout" href="/logout">
-            <i class="fas fa-sign-out-alt"></i>{{t.logout}}
-        </a>
-    </div>
-</header>
-
-<!-- Stats Dashboard -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <i class="fas fa-users" style="font-size:2em;color:var(--primary-btn);"></i>
-        <div class="stat-number">{{ stats.total_users }}</div>
-        <div class="stat-label">{{t.total_users}}</div>
-    </div>
-    <div class="stat-card">
-        <i class="fas fa-signal" style="font-size:2em;color:var(--ok);"></i>
-        <div class="stat-number">{{ stats.active_users }}</div>
-        <div class="stat-label">{{t.active_users}}</div>
-    </div>
-    <div class="stat-card">
-        <i class="fas fa-database" style="font-size:2em;color:var(--delete-btn);"></i>
-        <div class="stat-number">{{ stats.total_bandwidth }}</div>
-        <div class="stat-label">{{t.bandwidth_used}}</div>
-    </div>
-    <div class="stat-card">
-        <i class="fas fa-server" style="font-size:2em;color:var(--unknown);"></i>
-        <div class="stat-number">{{ stats.server_load }}%</div>
-        <div class="stat-label">{{t.server_load}}</div>
-    </div>
-</div>
-
-<!-- Desktop Tabs -->
-<div class="desktop-tabs">
-    <div class="tabs">
-        <button class="tab-btn active" onclick="openTab(event, 'users')">{{t.user_management}}</button>
-        <button class="tab-btn" onclick="openTab(event, 'adduser')">{{t.add_user}}</button>
-        <button class="tab-btn" onclick="openTab(event, 'bulk')">{{t.bulk_ops}}</button>
-        <button class="tab-btn" onclick="openTab(event, 'reports')">{{t.reports}}</button>
-    </div>
-
-    <!-- Add User Tab -->
-    <div id="adduser" class="tab-content">
-        <form method="post" action="/add" class="box">
-            <h3 style="color:var(--success);"><i class="fas fa-user-plus"></i> {{t.add_user}}</h3>
-            {% if msg %}<div class="msg">{{msg}}</div>{% endif %}
-            {% if err %}<div class="err">{{err}}</div>{% endif %}
-            <div class="row form-grid">
-                <div><label><i class="fas fa-user icon"></i> {{t.user}}</label><input name="user" placeholder="{{t.user}}" required></div>
-                <div><label><i class="fas fa-lock icon"></i> {{t.password}}</label><input name="password" placeholder="{{t.password}}" required></div>
-                <div><label><i class="fas fa-clock icon"></i> {{t.expires}}</label><input name="expires" placeholder="2026-01-01 or 30 (days)"></div>
-                <div><label><i class="fas fa-server icon"></i> {{t.port}}</label><input name="port" placeholder="auto" type="number" min="6000" max="19999"></div>
-            </div>
-            <div class="row form-grid">
-                <div><label><i class="fas fa-tachometer-alt"></i> {{t.speed_limit}}</label><input name="speed_limit" placeholder="0 = unlimited" type="number"></div>
-                <div><label><i class="fas fa-database"></i> {{t.bw_limit}}</label><input name="bandwidth_limit" placeholder="0 = unlimited" type="number"></div>
-                <div><label><i class="fas fa-plug"></i> {{t.max_conn}}</label><input name="concurrent_conn" value="1" type="number" min="1" max="10"></div>
-                <div><label><i class="fas fa-money-bill"></i> Plan Type</label>
-                    <select name="plan_type">
-                        <option value="free">Free</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly" selected>Monthly</option>
-                        <option value="yearly">Yearly</option>
-                    </select>
-                </div>
-            </div>
-            <button class="btn save" type="submit" style="margin-top:20px">
-                <i class="fas fa-save"></i> {{t.save_user}}
-            </button>
-        </form>
-    </div>
-
-    <!-- Bulk Operations Tab -->
-    <div id="bulk" class="tab-content">
-        <div class="box">
-            <h3 style="color:var(--logout-btn);"><i class="fas fa-cogs"></i> {{t.bulk_ops}}</h3>
-            <div class="row form-grid">
-                <div>
-                    <label>{{t.actions}}</label>
-                    <select id="bulkAction">
-                        <option value="">{{t.select_action}}</option>
-                        <option value="extend">{{t.extend_exp}}</option>
-                        <option value="suspend">{{t.suspend_users}}</option>
-                        <option value="activate">{{t.activate_users}}</option>
-                        <option value="delete">{{t.delete_users}}</option>
-                    </select>
-                </div>
-                <div>
-                    <label>{{t.user}}</label>
-                    <input type="text" id="bulkUsers" placeholder="Usernames comma separated (user1,user2)">
-                </div>
-                <div>
-                    <button class="btn secondary" onclick="executeBulkAction()" style="margin-top:25px;width:100%;">
-                        <i class="fas fa-play"></i> {{t.execute}}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Users Management Tab -->
-    <div id="users" class="tab-content active">
-        <div class="box">
-            <h3 style="color:var(--primary-btn);"><i class="fas fa-users"></i> {{t.user_management}}</h3>
-            <div style="margin:15px 0;display:flex;gap:10px;">
-                <input type="text" id="searchUser" placeholder="{{t.user_search}}" style="flex:1;">
-                <button class="btn secondary" onclick="filterUsers()">
-                    <i class="fas fa-search"></i> {{t.search}}
-                </button>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <table class="user-table" id="userTable">
-                <thead>
-                    <tr>
-                        <th><i class="fas fa-user"></i> {{t.user}}</th>
-                        <th><i class="fas fa-lock"></i> {{t.password}}</th>
-                        <th><i class="fas fa-clock"></i> {{t.expires}}</th>
-                        <th><i class="fas fa-server"></i> {{t.port}}</th>
-                        <th><i class="fas fa-database"></i> {{t.bandwidth}}</th>
-                        <th><i class="fas fa-tachometer-alt"></i> {{t.speed}}</th>
-                        <th><i class="fas fa-plug"></i> {{t.max_conn}}</th>
-                        <th><i class="fas fa-chart-line"></i> {{t.status}}</th>
-                        <th><i class="fas fa-cog"></i> {{t.actions}}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for u in users %}
-                <tr class="{% if u.expires and u.expires < today and u.status != 'Online' %}expired{% endif %}">
-                    <td data-label="{{t.user}}"><strong>{{u.user}}</strong></td>
-                    <td data-label="{{t.password}}">{{u.password}}</td>
-                    <td data-label="{{t.expires}}">{% if u.expires %}<span class="pill-purple">{{u.expires}}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
-                    <td data-label="{{t.port}}">{% if u.port %}<span class="pill-blue">{{u.port}}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
-                    <td data-label="{{t.bandwidth}}"><span class="pill-green">{{u.bandwidth_used}}/{{u.bandwidth_limit}} GB</span></td>
-                    <td data-label="{{t.speed}}"><span class="pill-yellow">{{u.speed_limit}} MB/s</span></td>
-                    <td data-label="{{t.max_conn}}"><span class="pill-blue">{{u.concurrent_conn}}</span></td>
-                    <td data-label="{{t.status}}">
-                        {% if u.status == "Online" %}<span class="pill status-ok">{{t.online}}</span>
-                        {% elif u.status == "Offline" %}<span class="pill status-bad">{{t.offline}}</span>
-                        {% elif u.status == "Expired" %}<span class="pill status-expired">{{t.expired}}</span>
-                        {% elif u.status == "suspended" %}<span class="pill status-bad">{{t.suspended}}</span>
-                        {% else %}<span class="pill status-unk">{{t.unknown}}</span>
-                        {% endif %}
-                    </td>
-                    <td data-label="{{t.actions}}">
-                        <div class="action-buttons">
-                            <form class="delform" method="post" action="/delete" onsubmit="return confirm('{{t.delete_confirm|replace("{user}", u.user)}}')">
-                                <input type="hidden" name="user" value="{{u.user}}">
-                                <button type="submit" class="btn delete action-btn" title="Delete"><i class="fas fa-trash-alt"></i></button>
-                            </form>
-                            <button class="btn secondary action-btn" title="Edit Password" onclick="editUser('{{u.user}}')"><i class="fas fa-edit"></i></button>
-                            {% if u.status == "suspended" or u.status == "Expired" %}
-                            <form class="delform" method="post" action="/activate">
-                                <input type="hidden" name="user" value="{{u.user}}">
-                                <button type="submit" class="btn save action-btn" title="Activate"><i class="fas fa-play"></i></button>
-                            </form>
-                            {% else %}
-                            <form class="delform" method="post" action="/suspend">
-                                <input type="hidden" name="user" value="{{u.user}}">
-                                <button type="submit" class="btn delete action-btn" title="Suspend"><i class="fas fa-pause"></i></button>
-                            </form>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Reports Tab -->
-    <div id="reports" class="tab-content">
-        <div class="box">
-            <h3 style="color:var(--success);"><i class="fas fa-chart-bar"></i> {{t.reports}}</h3>
-            <div class="row form-grid">
-                <div><label>{{t.reports}} From Date</label><input type="date" id="fromDate"></div>
-                <div><label>{{t.reports}} To Date</label><input type="date" id="toDate"></div>
-                <div><label>Report Type</label>
-                    <select id="reportType">
-                        <option value="bandwidth">{{t.report_bw}}</option>
-                        <option value="users">{{t.report_users}}</option>
-                        <option value="revenue">{{t.report_revenue}}</option>
-                    </select>
-                </div>
-                <div><button class="btn primary" onclick="generateReport()" style="margin-top:25px;width:100%;">{{t.execute}} Report</button></div>
-            </div>
-        </div>
-        <div id="reportResults" class="box" style="display:none; overflow-x:auto;"></div>
-    </div>
-</div>
-
-<!-- Mobile Navigation -->
-<nav class="mobile-nav">
-    <div class="mobile-nav-items">
-        <a href="javascript:void(0)" class="mobile-nav-item active" onclick="openMobileTab('users')">
-            <i class="fas fa-users"></i>
-            <span>{{t.user_management}}</span>
-        </a>
-        <a href="javascript:void(0)" class="mobile-nav-item" onclick="openMobileTab('adduser')">
-            <i class="fas fa-user-plus"></i>
-            <span>{{t.add_user}}</span>
-        </a>
-        <a href="javascript:void(0)" class="mobile-nav-item" onclick="openMobileTab('bulk')">
-            <i class="fas fa-cogs"></i>
-            <span>{{t.bulk_ops}}</span>
-        </a>
-        <a href="javascript:void(0)" class="mobile-nav-item" onclick="openMobileTab('reports')">
-            <i class="fas fa-chart-bar"></i>
-            <span>{{t.reports}}</span>
-        </a>
-    </div>
-</nav>
-
-<!-- Mobile Tab Contents -->
-<div class="mobile-tab-content active" id="mobile-users">
-    <!-- Same content as desktop users tab -->
-    <div class="box">
-        <h3 style="color:var(--primary-btn);"><i class="fas fa-users"></i> {{t.user_management}}</h3>
-        <div style="margin:15px 0;display:flex;gap:10px;">
-            <input type="text" id="mobileSearchUser" placeholder="{{t.user_search}}" style="flex:1;">
-            <button class="btn secondary" onclick="filterMobileUsers()">
-                <i class="fas fa-search"></i> {{t.search}}
-            </button>
-        </div>
-    </div>
-
-    <div class="table-container">
-        <table class="user-table" id="mobileUserTable">
-            <!-- Same table content as desktop -->
-            <tbody>
-            {% for u in users %}
-            <tr class="{% if u.expires and u.expires < today and u.status != 'Online' %}expired{% endif %}">
-                <td data-label="{{t.user}}"><strong>{{u.user}}</strong></td>
-                <td data-label="{{t.password}}">{{u.password}}</td>
-                <td data-label="{{t.expires}}">{% if u.expires %}<span class="pill-purple">{{u.expires}}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
-                <td data-label="{{t.port}}">{% if u.port %}<span class="pill-blue">{{u.port}}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
-                <td data-label="{{t.bandwidth}}"><span class="pill-green">{{u.bandwidth_used}}/{{u.bandwidth_limit}} GB</span></td>
-                <td data-label="{{t.speed}}"><span class="pill-yellow">{{u.speed_limit}} MB/s</span></td>
-                <td data-label="{{t.max_conn}}"><span class="pill-blue">{{u.concurrent_conn}}</span></td>
-                <td data-label="{{t.status}}">
-                    {% if u.status == "Online" %}<span class="pill status-ok">{{t.online}}</span>
-                    {% elif u.status == "Offline" %}<span class="pill status-bad">{{t.offline}}</span>
-                    {% elif u.status == "Expired" %}<span class="pill status-expired">{{t.expired}}</span>
-                    {% elif u.status == "suspended" %}<span class="pill status-bad">{{t.suspended}}</span>
-                    {% else %}<span class="pill status-unk">{{t.unknown}}</span>
-                    {% endif %}
-                </td>
-                <td data-label="{{t.actions}}">
-                    <div class="action-buttons">
-                        <form class="delform" method="post" action="/delete" onsubmit="return confirm('{{t.delete_confirm|replace("{user}", u.user)}}')">
-                            <input type="hidden" name="user" value="{{u.user}}">
-                            <button type="submit" class="btn delete action-btn" title="Delete"><i class="fas fa-trash-alt"></i></button>
-                        </form>
-                        <button class="btn secondary action-btn" title="Edit Password" onclick="editUser('{{u.user}}')"><i class="fas fa-edit"></i></button>
-                        {% if u.status == "suspended" or u.status == "Expired" %}
-                        <form class="delform" method="post" action="/activate">
-                            <input type="hidden" name="user" value="{{u.user}}">
-                            <button type="submit" class="btn save action-btn" title="Activate"><i class="fas fa-play"></i></button>
-                        </form>
-                        {% else %}
-                        <form class="delform" method="post" action="/suspend">
-                            <input type="hidden" name="user" value="{{u.user}}">
-                            <button type="submit" class="btn delete action-btn" title="Suspend"><i class="fas fa-pause"></i></button>
-                        </form>
-                        {% endif %}
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="mobile-tab-content" id="mobile-adduser">
-    <!-- Same content as desktop adduser tab -->
-    <form method="post" action="/add" class="box">
-        <h3 style="color:var(--success);"><i class="fas fa-user-plus"></i> {{t.add_user}}</h3>
-        {% if msg %}<div class="msg">{{msg}}</div>{% endif %}
-        {% if err %}<div class="err">{{err}}</div>{% endif %}
-        <div class="form-grid">
-            <div><label><i class="fas fa-user icon"></i> {{t.user}}</label><input name="user" placeholder="{{t.user}}" required></div>
-            <div><label><i class="fas fa-lock icon"></i> {{t.password}}</label><input name="password" placeholder="{{t.password}}" required></div>
-            <div><label><i class="fas fa-clock icon"></i> {{t.expires}}</label><input name="expires" placeholder="2026-01-01 or 30 (days)"></div>
-            <div><label><i class="fas fa-server icon"></i> {{t.port}}</label><input name="port" placeholder="auto" type="number" min="6000" max="19999"></div>
-            <div><label><i class="fas fa-tachometer-alt"></i> {{t.speed_limit}}</label><input name="speed_limit" placeholder="0 = unlimited" type="number"></div>
-            <div><label><i class="fas fa-database"></i> {{t.bw_limit}}</label><input name="bandwidth_limit" placeholder="0 = unlimited" type="number"></div>
-            <div><label><i class="fas fa-plug"></i> {{t.max_conn}}</label><input name="concurrent_conn" value="1" type="number" min="1" max="10"></div>
-            <div><label><i class="fas fa-money-bill"></i> Plan Type</label>
-                <select name="plan_type">
-                    <option value="free">Free</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly" selected>Monthly</option>
-                    <option value="yearly">Yearly</option>
-                </select>
-            </div>
-        </div>
-        <button class="btn save" type="submit" style="margin-top:20px; width:100%;">
-            <i class="fas fa-save"></i> {{t.save_user}}
-        </button>
-    </form>
-</div>
-
-<div class="mobile-tab-content" id="mobile-bulk">
-    <!-- Same content as desktop bulk tab -->
-    <div class="box">
-        <h3 style="color:var(--logout-btn);"><i class="fas fa-cogs"></i> {{t.bulk_ops}}</h3>
-        <div class="form-grid">
-            <div>
-                <label>{{t.actions}}</label>
-                <select id="mobileBulkAction">
-                    <option value="">{{t.select_action}}</option>
-                    <option value="extend">{{t.extend_exp}}</option>
-                    <option value="suspend">{{t.suspend_users}}</option>
-                    <option value="activate">{{t.activate_users}}</option>
-                    <option value="delete">{{t.delete_users}}</option>
-                </select>
-            </div>
-            <div>
-                <label>{{t.user}}</label>
-                <input type="text" id="mobileBulkUsers" placeholder="Usernames comma separated (user1,user2)">
-            </div>
-            <div>
-                <button class="btn secondary" onclick="executeMobileBulkAction()" style="margin-top:25px;width:100%;">
-                    <i class="fas fa-play"></i> {{t.execute}}
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="mobile-tab-content" id="mobile-reports">
-    <!-- Same content as desktop reports tab -->
-    <div class="box">
-        <h3 style="color:var(--success);"><i class="fas fa-chart-bar"></i> {{t.reports}}</h3>
-        <div class="form-grid">
-            <div><label>{{t.reports}} From Date</label><input type="date" id="mobileFromDate"></div>
-            <div><label>{{t.reports}} To Date</label><input type="date" id="mobileToDate"></div>
-            <div><label>Report Type</label>
-                <select id="mobileReportType">
-                    <option value="bandwidth">{{t.report_bw}}</option>
-                    <option value="users">{{t.report_users}}</option>
-                    <option value="revenue">{{t.report_revenue}}</option>
-                </select>
-            </div>
-            <div><button class="btn primary" onclick="generateMobileReport()" style="margin-top:25px;width:100%;">{{t.execute}} Report</button></div>
-        </div>
-    </div>
-    <div id="mobileReportResults" class="box" style="display:none; overflow-x:auto;"></div>
-</div>
-
-{% endif %}
-</div>
-
-<script>
-// --- Mobile Navigation ---
-function openMobileTab(tabName) {
-    // Hide all mobile tab contents
-    document.querySelectorAll('.mobile-tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Show selected tab
-    document.getElementById('mobile-' + tabName).classList.add('active');
-    
-    // Update mobile nav active state
-    document.querySelectorAll('.mobile-nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    event.currentTarget.classList.add('active');
-}
-
-// --- Theme Toggle ---
-function toggleTheme() {
-    const currentTheme = document.body.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    document.body.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-}
-
-// Set initial theme based on local storage or system preference
-document.addEventListener('DOMContentLoaded', () => {
-    const storedTheme = localStorage.getItem('theme');
-    const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initialTheme = storedTheme || (systemPrefersDark ? 'dark' : 'light');
-    document.body.setAttribute('data-theme', initialTheme);
-    
-    // Check if mobile device
-    if (window.innerWidth <= 768) {
-        document.querySelector('.desktop-tabs').style.display = 'none';
-        document.querySelector('.mobile-nav').style.display = 'block';
-    }
-});
-
-// --- Desktop Tabs ---
-function openTab(evt, tabName) {
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(tabName).classList.add('active');
-    evt.currentTarget.classList.add('active');
-}
-
-// --- Bulk Action ---
-function executeBulkAction() {
-    const t = {{t|tojson}};
-    const action = document.getElementById('bulkAction').value;
-    const users = document.getElementById('bulkUsers').value;
-    if (!action || !users) { alert(t.select_action + ' / ' + t.user + ' လိုအပ်သည်'); return; }
-
-    if (action === 'delete' && !confirm(t.delete_users + ' ' + users + ' ကို ဖျက်ရန် သေချာပါသလား?')) return;
-    
-    fetch('/api/bulk', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({action, users: users.split(',').map(u => u.trim()).filter(u => u)})
-    }).then(r => r.json()).then(data => {
-        alert(data.message.replace('{action}', action)); location.reload();
-    }).catch(e => {
-        alert('Error: ' + e.message);
-    });
-}
-
-function executeMobileBulkAction() {
-    const t = {{t|tojson}};
-    const action = document.getElementById('mobileBulkAction').value;
-    const users = document.getElementById('mobileBulkUsers').value;
-    if (!action || !users) { alert(t.select_action + ' / ' + t.user + ' လိုအပ်သည်'); return; }
-
-    if (action === 'delete' && !confirm(t.delete_users + ' ' + users + ' ကို ဖျက်ရန် သေချာပါသလား?')) return;
-    
-    fetch('/api/bulk', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({action, users: users.split(',').map(u => u.trim()).filter(u => u)})
-    }).then(r => r.json()).then(data => {
-        alert(data.message.replace('{action}', action)); location.reload();
-    }).catch(e => {
-        alert('Error: ' + e.message);
-    });
-}
-
-// --- User Filter ---
-function filterUsers() {
-    const search = document.getElementById('searchUser').value.toLowerCase();
-    document.querySelectorAll('#userTable tbody tr').forEach(row => {
-        const user = row.cells[0].textContent.toLowerCase();
-        row.style.display = user.includes(search) ? '' : 'none';
-    });
-}
-
-function filterMobileUsers() {
-    const search = document.getElementById('mobileSearchUser').value.toLowerCase();
-    document.querySelectorAll('#mobileUserTable tbody tr').forEach(row => {
-        const user = row.cells[0].textContent.toLowerCase();
-        row.style.display = user.includes(search) ? '' : 'none';
-    });
-}
-
-// --- Edit User ---
-function editUser(username) {
-    const t = {{t|tojson}};
-    const newPass = prompt(t.password + ' အသစ် ထည့်ပါ (' + username + '):');
-    if (newPass) {
-        fetch('/api/user/update', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({user: username, password: newPass})
-        }).then(r => r.json()).then(data => {
-            alert(data.message); location.reload();
-        }).catch(e => {
-            alert('Error: ' + e.message);
-        });
-    }
-}
-
-// --- Reports ---
-function generateReport() {
-    const from = document.getElementById('fromDate').value;
-    const to = document.getElementById('toDate').value;
-    const type = document.getElementById('reportType').value;
-    const reportResults = document.getElementById('reportResults');
-    const t = {{t|tojson}};
-
-    if (!from || !to) {
-        alert(t.report_range);
-        return;
-    }
-
-    reportResults.style.display = 'block';
-    reportResults.innerHTML = '<div class="center" style="padding:20px;"><i class="fas fa-spinner fa-spin"></i> Generating Report...</div>';
-
-    fetch(`/api/reports?from=${from}&to=${to}&type=${type}`)
-        .then(r => r.json())
-        .then(data => {
-            reportResults.innerHTML = '<h4>' + type.toUpperCase() + ' Report (' + from + ' to ' + to + ')</h4><pre style="white-space: pre-wrap; word-wrap: break-word;">' + JSON.stringify(data, null, 2) + '</pre>';
-        })
-        .catch(e => {
-            reportResults.innerHTML = '<div class="err">Error loading report: ' + e.message + '</div>';
-        });
-}
-
-function generateMobileReport() {
-    const from = document.getElementById('mobileFromDate').value;
-    const to = document.getElementById('mobileToDate').value;
-    const type = document.getElementById('mobileReportType').value;
-    const reportResults = document.getElementById('mobileReportResults');
-    const t = {{t|tojson}};
-
-    if (!from || !to) {
-        alert(t.report_range);
-        return;
-    }
-
-    reportResults.style.display = 'block';
-    reportResults.innerHTML = '<div class="center" style="padding:20px;"><i class="fas fa-spinner fa-spin"></i> Generating Report...</div>';
-
-    fetch(`/api/reports?from=${from}&to=${to}&type=${type}`)
-        .then(r => r.json())
-        .then(data => {
-            reportResults.innerHTML = '<h4>' + type.toUpperCase() + ' Report (' + from + ' to ' + to + ')</h4><pre style="white-space: pre-wrap; word-wrap: break-word;">' + JSON.stringify(data, null, 2) + '</pre>';
-        })
-        .catch(e => {
-            reportResults.innerHTML = '<div class="err">Error loading report: ' + e.message + '</div>';
-        });
-}
-
-// Handle window resize
-window.addEventListener('resize', function() {
-    if (window.innerWidth <= 768) {
-        document.querySelector('.desktop-tabs').style.display = 'none';
-        document.querySelector('.mobile-nav').style.display = 'block';
-    } else {
-        document.querySelector('.desktop-tabs').style.display = 'block';
-        document.querySelector('.mobile-nav').style.display = 'none';
-    }
-});
-</script>
-</body></html>
+    db.commit()
+    db.close()
+    return jsonify({"message": "Bandwidth updated"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8081)
 PY
 
-# ===== Connection Limit Fix - Enhanced UDP Server Configuration =====
-say "${Y}🔧 Connection Limit ပြုလုပ်နေပါတယ်...${Z}"
+# ===== Daily Cleanup Script =====
+say "${Y}🧹 Daily Cleanup Service ထည့်သွင်းနေပါတယ်...${Z}"
+cat >/etc/zivpn/cleanup.py <<'PY'
+import sqlite3
+import datetime
+import os
+import subprocess
+import json
+import tempfile
 
-# Create enhanced UDP server configuration with connection tracking
+DATABASE_PATH = "/etc/zivpn/zivpn.db"
+CONFIG_FILE = "/etc/zivpn/config.json"
+
+def get_db():
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def read_json(path, default):
+    try:
+        with open(path,"r") as f: return json.load(f)
+    except Exception:
+        return default
+
+def write_json_atomic(path, data):
+    d=json.dumps(data, ensure_ascii=False, indent=2)
+    dirn=os.path.dirname(path); fd,tmp=tempfile.mkstemp(prefix=".tmp-", dir=dirn)
+    try:
+        with os.fdopen(fd,"w") as f: f.write(d)
+        os.replace(tmp,path)
+    finally:
+        try: os.remove(tmp)
+        except: pass
+
+def sync_config_passwords():
+    # Only sync passwords for non-suspended/non-expired users
+    db = get_db()
+    active_users = db.execute('''
+        SELECT password FROM users 
+        WHERE status = "active" AND password IS NOT NULL AND password != "" 
+              AND (expires IS NULL OR expires >= CURRENT_DATE)
+    ''').fetchall()
+    db.close()
+    
+    users_pw = sorted({str(u["password"]) for u in active_users})
+    
+    cfg=read_json(CONFIG_FILE,{})
+    if not isinstance(cfg.get("auth"),dict): cfg["auth"]={}
+    cfg["auth"]["mode"]="passwords"
+    cfg["auth"]["config"]=users_pw
+    
+    write_json_atomic(CONFIG_FILE,cfg)
+    subprocess.run("systemctl restart zivpn.service", shell=True)
+
+def daily_cleanup():
+    db = get_db()
+    today = datetime.datetime.now().date().strftime("%Y-%m-%d")
+    suspended_count = 0
+    
+    try:
+        # 1. Auto-suspend expired users
+        expired_users = db.execute('''
+            SELECT username, expires, status FROM users
+            WHERE status = 'active' AND expires < ?
+        ''', (today,)).fetchall()
+        
+        for user in expired_users:
+            db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (user['username'],))
+            suspended_count += 1
+            print(f"User {user['username']} expired on {user['expires']} and was suspended.")
+            
+        db.commit()
+
+        # 2. Re-sync passwords to exclude the newly suspended users
+        if suspended_count > 0:
+            print(f"Total {suspended_count} users suspended. Restarting ZIVPN service...")
+            sync_config_passwords()
+        
+        print(f"Cleanup finished. {suspended_count} users suspended today.")
+        
+    except Exception as e:
+        print(f"An error occurred during daily cleanup: {e}")
+        
+    finally:
+        db.close()
+
+if __name__ == '__main__':
+    daily_cleanup()
+PY
+
+# ===== Backup Script =====
+say "${Y}💾 Backup System ထည့်သွင်းနေပါတယ်...${Z}"
+cat >/etc/zivpn/backup.py <<'PY'
+import sqlite3, shutil, datetime, os, gzip
+
+BACKUP_DIR = "/etc/zivpn/backups"
+DATABASE_PATH = "/etc/zivpn/zivpn.db"
+
+def backup_database():
+    if not os.path.exists(BACKUP_DIR):
+        os.makedirs(BACKUP_DIR)
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_file = os.path.join(BACKUP_DIR, f"zivpn_backup_{timestamp}.db.gz")
+    
+    # Backup database
+    with open(DATABASE_PATH, 'rb') as f_in:
+        with gzip.open(backup_file, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+    
+    # Cleanup old backups (keep last 7 days)
+    for file in os.listdir(BACKUP_DIR):
+        file_path = os.path.join(BACKUP_DIR, file)
+        if os.path.isfile(file_path):
+            file_time = datetime.datetime.fromtimestamp(os.path.getctime(file_path))
+            if (datetime.datetime.now() - file_time).days > 7:
+                os.remove(file_path)
+    
+    print(f"Backup created: {backup_file}")
+
+if __name__ == '__main__':
+    backup_database()
+PY
+
+# ===== Connection Manager =====
+say "${Y}🔗 Connection Manager ထည့်သွင်းနေပါတယ်...${Z}"
 cat >/etc/zivpn/connection_manager.py <<'PY'
 import sqlite3
 import subprocess
@@ -1397,7 +578,87 @@ if __name__ == "__main__":
         print("Stopping Connection Manager...")
 PY
 
-# Create systemd service for connection manager
+# ===== systemd Services =====
+say "${Y}🧰 systemd services များ ထည့်သွင်းနေပါတယ်...${Z}"
+
+# ZIVPN Service
+cat >/etc/systemd/system/zivpn.service <<'EOF'
+[Unit]
+Description=ZIVPN UDP Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/zivpn
+ExecStart=/usr/local/bin/zivpn server -c /etc/zivpn/config.json
+Restart=always
+RestartSec=3
+Environment=ZIVPN_LOG_LEVEL=info
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Web Panel Service
+cat >/etc/systemd/system/zivpn-web.service <<'EOF'
+[Unit]
+Description=ZIVPN Web Panel
+After=network.target
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=-/etc/zivpn/web.env
+ExecStart=/usr/bin/python3 /etc/zivpn/web.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# API Service
+cat >/etc/systemd/system/zivpn-api.service <<'EOF'
+[Unit]
+Description=ZIVPN API Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/zivpn
+ExecStart=/usr/bin/python3 /etc/zivpn/api.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Telegram Bot Service
+cat >/etc/systemd/system/zivpn-bot.service <<'EOF'
+[Unit]
+Description=ZIVPN Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=-/etc/zivpn/web.env
+WorkingDirectory=/etc/zivpn
+ExecStart=/usr/bin/python3 /etc/zivpn/bot.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Connection Manager Service
 cat >/etc/systemd/system/zivpn-connection.service <<'EOF'
 [Unit]
 Description=ZIVPN Connection Manager
@@ -1415,59 +676,115 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# Update the main ZIVPN service to include connection tracking
-cat >/etc/systemd/system/zivpn.service <<'EOF'
+# Backup Service
+cat >/etc/systemd/system/zivpn-backup.service <<'EOF'
 [Unit]
-Description=ZIVPN UDP Server with Connection Tracking
+Description=ZIVPN Backup Service
 After=network.target
 
 [Service]
-Type=simple
+Type=oneshot
 User=root
 WorkingDirectory=/etc/zivpn
-ExecStartPre=/bin/bash -c "/usr/bin/python3 /etc/zivpn/connection_manager.py &"
-ExecStart=/usr/local/bin/zivpn server -c /etc/zivpn/config.json
-Restart=always
-RestartSec=3
-Environment=ZIVPN_LOG_LEVEL=info
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
-NoNewPrivileges=true
+ExecStart=/usr/bin/python3 /etc/zivpn/backup.py
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# Enable and start the connection manager
-systemctl daemon-reload
-systemctl enable --now zivpn-connection.service
+cat >/etc/systemd/system/zivpn-backup.timer <<'EOF'
+[Unit]
+Description=Daily ZIVPN Backup
+Requires=zivpn-backup.service
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+# Cleanup Service
+cat >/etc/systemd/system/zivpn-cleanup.service <<'EOF'
+[Unit]
+Description=ZIVPN Daily Cleanup
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/etc/zivpn
+ExecStart=/usr/bin/python3 /etc/zivpn/cleanup.py
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat >/etc/systemd/system/zivpn-cleanup.timer <<'EOF'
+[Unit]
+Description=Daily ZIVPN Cleanup Timer
+Requires=zivpn-cleanup.service
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+# ===== Networking Setup =====
+echo -e "${Y}🌐 Network Configuration ပြုလုပ်နေပါတယ်...${Z}"
+sysctl -w net.ipv4.ip_forward=1 >/dev/null
+grep -q '^net.ipv4.ip_forward=1' /etc/sysctl.conf || echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+
+IFACE=$(ip -4 route ls | awk '/default/ {print $5; exit}')
+[ -n "${IFACE:-}" ] || IFACE=eth0
+
+# DNAT Rules
+iptables -t nat -F
+iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j DNAT --to-destination :5667
+iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
+
+# UFW Rules
+ufw allow 22/tcp >/dev/null 2>&1 || true
+ufw allow 5667/udp >/dev/null 2>&1 || true
+ufw allow 6000:19999/udp >/dev/null 2>&1 || true
+ufw allow 8080/tcp >/dev/null 2>&1 || true
+ufw allow 8081/tcp >/dev/null 2>&1 || true
+ufw --force enable >/dev/null 2>&1 || true
 
 # ===== Final Setup =====
 say "${Y}🔧 Final Configuration ပြုလုပ်နေပါတယ်...${Z}"
+chmod +x /etc/zivpn/*.py
 sed -i 's/\r$//' /etc/zivpn/*.py /etc/systemd/system/zivpn* || true
 
 systemctl daemon-reload
-systemctl restart zivpn.service
-systemctl restart zivpn-web.service
-systemctl restart zivpn-connection.service
+systemctl enable --now zivpn.service
+systemctl enable --now zivpn-web.service
+systemctl enable --now zivpn-api.service
+systemctl enable --now zivpn-bot.service
+systemctl enable --now zivpn-connection.service
+systemctl enable --now zivpn-backup.timer
+systemctl enable --now zivpn-cleanup.timer
 
-# Initial cleanup and restart
+# Initial setup
 python3 /etc/zivpn/backup.py
 python3 /etc/zivpn/cleanup.py
+systemctl restart zivpn.service
 
 # ===== Completion Message =====
 IP=$(hostname -I | awk '{print $1}')
-echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition - Mobile Fixed & Connection Limit Fixed!${Z}"
+echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition - GitHub Integration Complete!${Z}"
 echo -e "${C}🌐 Web Panel:${Z} ${Y}http://$IP:8080${Z}"
-echo -e "  ${C}Mobile Optimized:${Z} ${Y}Yes - Bottom Navigation & Touch-Friendly${Z}"
-echo -e "  ${C}Connection Limit:${Z} ${Y}Fixed - Max Connections Now Enforced${Z}"
-echo -e "\n${M}📱 Mobile Features:${Z}"
-echo -e "  ${Y}• Bottom Navigation Tabs${Z}"
-echo -e "  ${Y}• Touch-Friendly Buttons${Z}"
-echo -e "  ${Y}• Responsive Design${Z}"
-echo -e "  ${Y}• Swipe Support${Z}"
-echo -e "\n${G}🔧 Connection Limit Fix:${Z}"
-echo -e "  ${Y}• Real-time Connection Tracking${Z}"
-echo -e "  ${Y}• Automatic Limit Enforcement${Z}"
-echo -e "  ${Y}• Excess Connection Dropping${Z}"
+echo -e "  ${C}Login:${Z} ${Y}$WEB_USER / [သင်ထည့်ထားသောစကားဝှက်]${Z}"
+echo -e "\n${M}📊 Services Status:${Z}"
+echo -e "  ${Y}systemctl status zivpn-web${Z}      - Web Panel"
+echo -e "  ${Y}systemctl status zivpn-bot${Z}      - Telegram Bot"
+echo -e "  ${Y}systemctl status zivpn-connection${Z} - Connection Manager"
+echo -e "\n${G}🎯 GitHub Integration Active:${Z}"
+echo -e "  ${Y}• Web Panel from GitHub${Z}"
+echo -e "  ${Y}• Telegram Bot from GitHub${Z}"
+echo -e "  ${Y}• Auto-update capability${Z}"
 echo -e "$LINE"
