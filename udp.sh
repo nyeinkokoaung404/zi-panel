@@ -778,15 +778,14 @@ systemctl restart zivpn.service
 
 # ===== Completion Message =====
 IP=$(hostname -I | awk '{print $1}')
-echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition Complete!${Z}"
-echo -e "${C}🌐 Web Panel:${Z} ${Y}http://$IP:8080${Z}"
-echo -e "  ${C}Login:${Z} ${Y}$WEB_USER / $WEB_PASS${Z}"
-echo -e "\n${M}📊 Services Status:${Z}"
+echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition Completed!${Z}"
+echo -e "${C}🌐 WEB PANEL:${Z} ${Y}http://$IP:8080${Z}"
+# echo -e "  ${C}Login:${Z} ${Y}$WEB_USER / $WEB_PASS${Z}"
+echo -e "\n${G}🔐 LOGIN CREDENTIALS${Z}"
+echo -e "  ${Y}• Username:${Z} ${Y}$WEB_USER${Z}"
+echo -e "  ${Y}• Password:${Z} ${Y}$WEB_PASS${Z}"
+echo -e "\n${M}📊 SERVICES STATUS:${Z}"
 echo -e "  ${Y}systemctl status zivpn-web${Z}      - Web Panel"
 echo -e "  ${Y}systemctl status zivpn-bot${Z}      - Telegram Bot"
 echo -e "  ${Y}systemctl status zivpn-connection${Z} - Connection Manager"
-echo -e "\n${G}🎯 GitHub Integration Active:${Z}"
-echo -e "  ${Y}• Web Panel from GitHub${Z}"
-echo -e "  ${Y}• Telegram Bot from GitHub${Z}"
-echo -e "  ${Y}• Auto-update capability${Z}"
 echo -e "$LINE"
