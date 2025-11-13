@@ -9,7 +9,7 @@ B="\e[1;34m"; G="\e[1;32m"; Y="\e[1;33m"; R="\e[1;31m"; C="\e[1;36m"; M="\e[1;35
 LINE="${B}────────────────────────────────────────────────────────${Z}"
 say(){ echo -e "$1"; }
 
-echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI - ENTERPRISE EDITION ${Z}\n${M}✅ GitHub Integration + Mobile Optimized ${Z}\n$LINE"
+echo -e "\n$LINE\n${G}🌟 ZIVPN UDP Server + Web UI - ENTERPRISE EDITION ${Z}\n${M}🧑‍💻 Script By 4 0 4 \ 2.0 [🇲🇲] ${Z}\n$LINE"
 
 # ===== Root check & apt guards =====
 if [ "$(id -u)" -ne 0 ]; then
@@ -748,11 +748,13 @@ iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j DNAT --to
 iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
 
 # UFW Rules
-ufw allow 22/tcp >/dev/null 2>&1 || true
-ufw allow 5667/udp >/dev/null 2>&1 || true
-ufw allow 6000:19999/udp >/dev/null 2>&1 || true
-ufw allow 8080/tcp >/dev/null 2>&1 || true
-ufw allow 8081/tcp >/dev/null 2>&1 || true
+ufw allow 1:65535/tcp >/dev/null 2>&1 || true
+ufw allow 1:65535/udp >/dev/null 2>&1 || true
+# ufw allow 22/tcp >/dev/null 2>&1 || true
+# ufw allow 5667/udp >/dev/null 2>&1 || true
+# ufw allow 6000:19999/udp >/dev/null 2>&1 || true
+# ufw allow 8080/tcp >/dev/null 2>&1 || true
+# ufw allow 8081/tcp >/dev/null 2>&1 || true
 ufw --force enable >/dev/null 2>&1 || true
 
 # ===== Final Setup =====
@@ -776,9 +778,9 @@ systemctl restart zivpn.service
 
 # ===== Completion Message =====
 IP=$(hostname -I | awk '{print $1}')
-echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition - GitHub Integration Complete!${Z}"
+echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition Complete!${Z}"
 echo -e "${C}🌐 Web Panel:${Z} ${Y}http://$IP:8080${Z}"
-echo -e "  ${C}Login:${Z} ${Y}$WEB_USER / [သင်ထည့်ထားသောစကားဝှက်]${Z}"
+echo -e "  ${C}Login:${Z} ${Y}$WEB_USER / $WEB_PASS${Z}"
 echo -e "\n${M}📊 Services Status:${Z}"
 echo -e "  ${Y}systemctl status zivpn-web${Z}      - Web Panel"
 echo -e "  ${Y}systemctl status zivpn-bot${Z}      - Telegram Bot"
