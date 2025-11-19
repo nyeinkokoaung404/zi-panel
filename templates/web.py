@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-ZIVPN Enterprise Web Panel - Remote HTML Template Edition
-This version exclusively loads the template from HTML_TEMPLATE_URL.
+ZIVPN Enterprise Web Panel - Remote HTML Template Edition (Fixed Internal Server Error)
+Added database migration logic to ensure the 'hwid' column exists.
 """
 
 from flask import Flask, jsonify, render_template_string, request, redirect, url_for, session, make_response, g
@@ -95,16 +95,14 @@ TRANSLATIONS = {
 }
 
 def load_html_template():
-    """Load HTML template from GitHub. Raises an exception if loading fails."""
+    """HTML Template ကို GitHub မှ ဒေါင်းလုပ်ဆွဲသည်။ ချိတ်ဆက်မှု မရပါက အမှားပြမည်။"""
     try:
-        # Note: Added a timestamp query parameter to bust cache if the file changes frequently
         response = requests.get(f"{HTML_TEMPLATE_URL}?t={datetime.now().timestamp()}", timeout=10)
         response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
         return response.text
     except requests.exceptions.RequestException as e:
-        print(f"ERROR: Failed to load template from GitHub: {e}")
-        # The service will fail gracefully, forcing the user to see a basic HTML error page,
-        # or crashing the service, which is expected behavior when a remote resource is mandatory.
+        print(f"ERROR: HTML template ကို GitHub မှ fetch လုပ်မရပါ: {e}")
+        # Server ကို crash ခိုင်းလိုက်ပါသည်၊ အဘယ်ကြောင့်ဆိုသော် template သည် မဖြစ်မနေလိုအပ်ပါသည်။
         raise RuntimeError(f"Could not fetch HTML template from {HTML_TEMPLATE_URL}: {e}")
 
 app = Flask(__name__)
@@ -113,14 +111,37 @@ ADMIN_USER = os.environ.get("WEB_ADMIN_USER","").strip()
 ADMIN_PASS = os.environ.get("WEB_ADMIN_PASSWORD","").strip()
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
 
-# Enable permanent sessions (14 days)
+# Permanent sessions (14 days)
 app.permanent_session_lifetime = timedelta(days=14)
+
+# --- Database Migration Function ---
+
+def check_and_migrate_db(conn):
+    """'users' table တွင် လိုအပ်သည့် 'hwid' column ရှိမရှိ စစ်ဆေးပြီး မရှိပါက ထည့်သွင်းသည်။"""
+    cursor = conn.cursor()
+    
+    # Check for 'hwid' column
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [row[1] for row in cursor.fetchall()]
+    
+    if 'hwid' not in columns:
+        print("MIGRATION: 'hwid' column မတွေ့ပါ။ ယခု ထည့်သွင်းပါမည်။")
+        try:
+            # Add 'hwid' column with default empty string
+            cursor.execute("ALTER TABLE users ADD COLUMN hwid TEXT DEFAULT ''")
+            conn.commit()
+            print("MIGRATION: 'hwid' column အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။")
+        except sqlite3.OperationalError as e:
+            print(f"MIGRATION ERROR: hwid column ထည့်သွင်းရာတွင် အမှား: {e}")
+            # Database lock ကြောင့် ဖြစ်နိုင်ပါက ဆက်လက်လုပ်ဆောင်သည်။
 
 # --- Utility Functions ---
 
 def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
+    # အရင်ဆုံး DB Migration ကို စစ်ဆေးသည်။
+    check_and_migrate_db(conn) 
     return conn
 
 def read_json(path, default):
@@ -190,9 +211,11 @@ def get_server_stats():
     db = get_db()
     try:
         total_users = db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        # Active users: status is 'active' AND (expires is NULL OR expires >= today)
         active_users_db = db.execute('SELECT COUNT(*) FROM users WHERE status = "active" AND (expires IS NULL OR expires >= CURRENT_DATE)').fetchone()[0]
         total_bandwidth = db.execute('SELECT SUM(bandwidth_used) FROM users').fetchone()[0] or 0
         
+        # Server Load သည် Active Users ပေါ် မူတည်၍ ခန့်မှန်းထားသည်။
         server_load = min(100, (active_users_db * 5) + 10)
         
         return {
@@ -211,9 +234,10 @@ def get_listen_port_from_config():
     return (m.group(1) if m else LISTEN_FALLBACK)
 
 def has_recent_udp_activity(port):
+    """conntrack ကိုသုံးပြီး ပေးထားသော port တွင် connection ရှိမရှိ စစ်ဆေးသည်။"""
     if not port: return False
     try:
-        # Use an optimized conntrack command to check for presence of a connection on the specific port
+        # awk command ကိုသုံးပြီး ပေးထားသော dport ဖြင့် connection ရှိမရှိ စစ်သည်။
         command = f"conntrack -L -p udp 2>/dev/null | awk '/dport={port}\\b/ {{print $1}}' | head -n 1"
         out=subprocess.run(command, shell=True, capture_output=True, text=True).stdout
         return bool(out)
@@ -221,6 +245,7 @@ def has_recent_udp_activity(port):
         return False
 
 def status_for_user(u, listen_port):
+    """အသုံးပြုသူ၏ အခြေအနေ (Online/Offline/Expired/Suspended) ကို တွက်ချက်သည်။"""
     port=str(u.get("port",""))
     check_port=port if port else listen_port
 
@@ -238,11 +263,13 @@ def status_for_user(u, listen_port):
 
     if is_expired: return "Expired"
 
+    # Connection ရှိမရှိ စစ်ဆေးပြီး Online/Offline ပြသသည်။
     if has_recent_udp_activity(check_port): return "Online"
     
     return "Offline"
 
 def sync_config_passwords(mode="mirror"):
+    """Active User များ၏ Password များကို ZIVPN config file ထဲသို့ ထည့်သွင်းပြီး service ကို restart လုပ်သည်။"""
     db = get_db()
     active_users = db.execute('''
         SELECT password FROM users 
@@ -291,14 +318,15 @@ def set_lang():
 @app.route("/login", methods=["GET","POST"])
 def login():
     t = g.t
-    html_template = load_html_template()
+    # Template ကို အပြင်မှ တစ်ခါတည်း fetch လုပ်သည်။
+    html_template = load_html_template() 
     if not login_enabled(): return redirect(url_for('index'))
     
     if request.method=="POST":
         u=(request.form.get("u") or "").strip()
         p=(request.form.get("p") or "").strip()
         
-        # Handle permanent session if checkbox is checked
+        # 'Save Login' checkbox ကို စစ်ဆေးပြီး session သက်တမ်းကို သတ်မှတ်သည်။
         remember_me = request.form.get("remember_me") == "on"
         session.permanent = remember_me
         
@@ -321,16 +349,26 @@ def logout():
 
 def build_view(msg="", err=""):
     t = g.t
-    html_template = load_html_template() # Load template inside view function
+    # Template ကို အပြင်မှ load လုပ်သည်။
+    try:
+        html_template = load_html_template() 
+    except RuntimeError as e:
+        # Template load မရပါက အမှား message ပြသသည်။
+        return f"<h1>Error: Cannot load Web Panel Template</h1><p>{e}</p>", 500
     
     if not require_login():
         return render_template_string(html_template, authed=False, logo=LOGO_URL, err=session.pop("login_err", None), 
                                      t=t, lang=g.lang, theme=session.get('theme', 'dark'))
     
-    users=load_users()
-    listen_port=get_listen_port_from_config()
-    stats = get_server_stats()
-    
+    # ဤနေရာမှ စတင်၍ Database မှ data များ ဆွဲယူသည်။
+    try:
+        users=load_users()
+        listen_port=get_listen_port_from_config()
+        stats = get_server_stats()
+    except Exception as e:
+        # Database Error ဖြစ်ပါက Internal Server Error အစား message ပြသနိုင်သည်။
+        return f"<h1>Error: Database Access Failed</h1><p>Please check if the ZIVPN services are running and if the SQLite database is properly initialized. Detail: {e}</p>", 500
+
     view=[]
     today_date=datetime.now().date()
     
@@ -452,7 +490,7 @@ def activate_user():
         sync_config_passwords()
     return redirect(url_for('index'))
 
-# --- API Routes ---
+# --- API Routes (No changes, HWID is handled by save/update_user logic) ---
 
 @app.route("/api/bulk", methods=["POST"])
 def bulk_operations():
@@ -558,12 +596,10 @@ def update_user():
             update_fields = []
             params = []
             
-            # Allow password update
             if password is not None:
                 update_fields.append("password = ?")
                 params.append(password)
             
-            # Allow HWID update
             if hwid is not None:
                 update_fields.append("hwid = ?")
                 params.append(hwid)
