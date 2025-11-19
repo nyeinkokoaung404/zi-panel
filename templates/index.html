@@ -640,7 +640,7 @@ tr:hover {
                 <input name="p" type="password" required>
             </div>
             
-            <!-- NEW: Save Login Checkbox (14 Days) -->
+            <!-- Login Checkbox (Save Login) -->
             <label class="checkbox-container">
                 <input type="checkbox" name="remember_me" checked>
                 {{t.save_login}}
@@ -664,7 +664,7 @@ tr:hover {
             </div>
             <div class="subtitle">Management System</div>
         </div>
-        <!-- Settings Button (Moved to top right) -->
+        <!-- Settings Button (Top right) -->
         <button class="settings-btn-header" onclick="openSettings()" title="{{t.settings}}">
             <i class="fas fa-cog"></i>
         </button>
@@ -965,7 +965,7 @@ tr:hover {
 </div>
 
 
-<!-- Settings Modal (Remains the same structure) -->
+<!-- Settings Modal -->
 <div id="settingsModal" class="custom-modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -988,11 +988,9 @@ tr:hover {
         <div class="setting-group">
             <label class="setting-label"><i class="fas fa-language"></i> Language</label>
             <div class="lang-options">
-                <!-- Check if the current language is 'my' -->
                 <div class="lang-option {% if lang == 'my' %}active{% endif %}" data-lang="my" onclick="changeLanguage('my')">
                     <i class="fas fa-language"></i> မြန်မာ
                 </div>
-                <!-- Check if the current language is 'en' -->
                 <div class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en" onclick="changeLanguage('en')">
                     <i class="fas fa-language"></i> English
                 </div>
@@ -1129,11 +1127,12 @@ function deleteUser(username) {
     }
 }
 
-// NEW: Edit Modal Functions (Password and HWID)
+// Edit Modal Functions (Password and HWID)
 function openEditModal(username, password, hwid) {
     document.getElementById('editUsername').textContent = username;
     document.getElementById('editOriginalUser').value = username;
     document.getElementById('editPassword').value = password;
+    // Set HWID field, replacing 'None', 'null', or '-' with empty string for editing
     document.getElementById('editHWID').value = (hwid === 'None' || hwid === 'null' || hwid === '-') ? '' : hwid;
     document.getElementById('editUserModal').classList.add('active');
 }
