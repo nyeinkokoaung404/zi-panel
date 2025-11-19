@@ -447,6 +447,10 @@ tr:hover {
     align-items: center;
     justify-content: center;
 }
+/* FIX: Modal visibility when active */
+.custom-modal.active {
+    display: flex; 
+}
 
 .modal-content {
     background: var(--card);
@@ -1044,8 +1048,9 @@ function showSection(sectionId) {
     }
 }
 
-// Settings Modal Functions (Now uses custom-modal class)
+// Settings Modal Functions
 function openSettings() {
+    // FIX: Add active class to show the modal
     document.getElementById('settingsModal').classList.add('active');
 }
 
@@ -1134,6 +1139,7 @@ function openEditModal(username, password, hwid) {
     document.getElementById('editPassword').value = password;
     // Set HWID field, replacing 'None', 'null', or '-' with empty string for editing
     document.getElementById('editHWID').value = (hwid === 'None' || hwid === 'null' || hwid === '-') ? '' : hwid;
+    // FIX: Add active class to show the modal
     document.getElementById('editUserModal').classList.add('active');
 }
 
