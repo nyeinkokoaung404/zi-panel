@@ -5,6 +5,7 @@
     <title>{{t.title}} - Channel 404</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta http-equiv="refresh" content="120">
+    <!-- Using Padauk for Burmese font -->
     <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
@@ -46,6 +47,9 @@ html,body{
     text-align: center;
     position: relative;
     overflow: hidden;
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
 }
 
 .header::before {
@@ -62,6 +66,7 @@ html,body{
 .header-content {
     position: relative;
     z-index: 2;
+    flex-grow: 1; 
 }
 
 .logo-container {
@@ -94,6 +99,30 @@ html,body{
     font-size: 0.9em;
     margin-top: 5px;
 }
+
+/* Settings Button in Header */
+.settings-btn-header {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.3s ease;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 5;
+}
+
+.settings-btn-header:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: rotate(45deg);
+}
+
 
 /* Bottom Navigation Bar */
 .bottom-nav {
@@ -404,8 +433,8 @@ tr:hover {
     font-size: 0.9em;
 }
 
-/* Settings Modal */
-.settings-modal {
+/* Modal */
+.custom-modal {
     display: none;
     position: fixed;
     top: 0;
@@ -415,22 +444,25 @@ tr:hover {
     background: rgba(0,0,0,0.5);
     z-index: 2000;
     backdrop-filter: blur(5px);
+    align-items: center;
+    justify-content: center;
 }
 
-.settings-content {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+.modal-content {
     background: var(--card);
     padding: 25px;
-    border-radius: var(--radius) var(--radius) 0 0;
-    box-shadow: 0 -10px 30px rgba(0,0,0,0.3);
-    max-height: 80vh;
-    overflow-y: auto;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    width: 90%;
+    max-width: 450px;
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+.custom-modal.active .modal-content {
+    transform: scale(1);
 }
 
-.settings-header {
+.modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -439,7 +471,7 @@ tr:hover {
     border-bottom: 1px solid var(--bd);
 }
 
-.settings-header h3 {
+.modal-header h3 {
     margin: 0;
     color: var(--primary-btn);
     display: flex;
@@ -447,52 +479,13 @@ tr:hover {
     gap: 10px;
 }
 
-.close-settings {
+.close-modal {
     background: none;
     border: none;
     font-size: 1.5em;
     color: var(--fg);
     cursor: pointer;
     padding: 5px;
-}
-
-.setting-group {
-    margin-bottom: 20px;
-}
-
-.setting-label {
-    display: block;
-    margin-bottom: 10px;
-    font-weight: 600;
-    color: var(--fg);
-}
-
-.theme-options, .lang-options {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
-.theme-option, .lang-option {
-    padding: 12px;
-    border: 2px solid var(--bd);
-    border-radius: var(--radius);
-    background: var(--bg);
-    color: var(--fg);
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.3s ease;
-    font-weight: 600;
-}
-
-.theme-option:hover, .lang-option:hover {
-    border-color: var(--primary-btn);
-}
-
-.theme-option.active, .lang-option.active {
-    border-color: var(--primary-btn);
-    background: var(--primary-btn);
-    color: white;
 }
 
 /* Login Styles */
@@ -531,6 +524,27 @@ tr:hover {
     font-size: 1.5em;
     font-weight: 700;
 }
+
+/* Login Checkbox (Save Login) */
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 15px 0 25px 0;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.checkbox-container input[type="checkbox"] {
+    width: auto;
+    padding: 0;
+    margin: 0;
+    height: 18px;
+    width: 18px;
+    accent-color: var(--primary-btn);
+}
+
 
 /* Messages */
 .alert {
@@ -625,6 +639,13 @@ tr:hover {
                 <label><i class="fas fa-lock"></i> {{t.password}}</label>
                 <input name="p" type="password" required>
             </div>
+            
+            <!-- NEW: Save Login Checkbox (14 Days) -->
+            <label class="checkbox-container">
+                <input type="checkbox" name="remember_me" checked>
+                {{t.save_login}}
+            </label>
+            
             <button type="submit" class="btn btn-primary btn-block">
                 <i class="fas fa-sign-in-alt"></i>{{t.login}}
             </button>
@@ -643,7 +664,14 @@ tr:hover {
             </div>
             <div class="subtitle">Management System</div>
         </div>
+        <!-- Settings Button (Moved to top right) -->
+        <button class="settings-btn-header" onclick="openSettings()" title="{{t.settings}}">
+            <i class="fas fa-cog"></i>
+        </button>
     </header>
+    
+    {% if msg %}<div class="alert alert-success">{{msg}}</div>{% endif %}
+    {% if err %}<div class="alert alert-error">{{err}}</div>{% endif %}
 
     <!-- Home Section -->
     <div id="home" class="content-section active">
@@ -724,6 +752,7 @@ tr:hover {
         <div class="form-card">
             <h3 class="form-title"><i class="fas fa-users"></i> {{t.user_management}}</h3>
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <!-- Search by User or HWID -->
                 <input type="text" id="searchUser" placeholder="{{t.user_search}}" style="flex: 1;">
                 <button class="btn btn-primary" onclick="filterUsers()">
                     <i class="fas fa-search"></i>
@@ -737,6 +766,7 @@ tr:hover {
                     <tr>
                         <th>{{t.user}}</th>
                         <th>{{t.password}}</th>
+                        <th>{{t.hwid}}</th> <!-- HWID COLUMN -->
                         <th>{{t.expires}}</th>
                         <th>{{t.status}}</th>
                         <th>{{t.actions}}</th>
@@ -744,9 +774,11 @@ tr:hover {
                 </thead>
                 <tbody>
                 {% for u in users %}
-                <tr>
+                <!-- Added data attributes for JS search -->
+                <tr data-hwid="{{u.hwid}}" data-user="{{u.user}}"> 
                     <td><strong>{{u.user}}</strong></td>
                     <td>{{u.password}}</td>
+                    <td><small>{{u.hwid or '-'}}</small></td> <!-- HWID CELL -->
                     <td>{{u.expires or '-'}}</td>
                     <td>
                         <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
@@ -756,7 +788,8 @@ tr:hover {
                             <button class="action-btn btn-danger" onclick="deleteUser('{{u.user}}')" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
-                            <button class="action-btn btn-primary" onclick="editUser('{{u.user}}')" title="Edit">
+                            <!-- Updated Edit button to open custom modal -->
+                            <button class="action-btn btn-primary" onclick="openEditModal('{{u.user}}', '{{u.password}}', '{{u.hwid}}')" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
                         </div>
@@ -772,8 +805,6 @@ tr:hover {
     <div id="adduser" class="content-section">
         <form method="post" action="/add" class="form-card">
             <h3 class="form-title"><i class="fas fa-user-plus"></i> {{t.add_user}}</h3>
-            {% if msg %}<div class="alert alert-success">{{msg}}</div>{% endif %}
-            {% if err %}<div class="alert alert-error">{{err}}</div>{% endif %}
             
             <div class="form-grid">
                 <div class="form-group">
@@ -785,16 +816,18 @@ tr:hover {
                     <input name="password" placeholder="{{t.password}}" required>
                 </div>
                 <div class="form-group">
+                    <label>{{t.hwid}}</label> <!-- HWID INPUT -->
+                    <input name="hwid" placeholder="Optional HWID Code (e.g., A1B2C3D4)">
+                </div>
+                <div class="form-group">
                     <label>{{t.expires}}</label>
-                    <input name="expires" placeholder="2026-01-01">
+                    <input name="expires" placeholder="YYYY-MM-DD or days (e.g., 30)">
                 </div>
                 <div class="form-group">
                     <label>{{t.port}}</label>
                     <input name="port" placeholder="Auto" type="number" min="6000" max="19999">
                 </div>
-            </div>
-
-            <div class="form-grid">
+                
                 <div class="form-group">
                     <label>{{t.speed_limit}}</label>
                     <input name="speed_limit" placeholder="0 = Unlimited" type="number">
@@ -881,51 +914,72 @@ tr:hover {
     </div>
 </div>
 
-<!-- Bottom Navigation Bar -->
+<!-- Bottom Navigation Bar (Main Navigation) -->
 <nav class="bottom-nav">
     <div class="nav-items">
-        <a href="javascript:void(0)" class="nav-item active" onclick="showSection('home')">
+        <a href="javascript:void(0)" class="nav-item active" data-section="home" onclick="showSection('home')">
             <i class="fas fa-home nav-icon"></i>
             <span class="nav-label">{{t.home}}</span>
         </a>
-        <a href="javascript:void(0)" class="nav-item" onclick="showSection('manage')">
+        <a href="javascript:void(0)" class="nav-item" data-section="manage" onclick="showSection('manage')">
             <i class="fas fa-users nav-icon"></i>
             <span class="nav-label">{{t.manage}}</span>
         </a>
-        <a href="javascript:void(0)" class="nav-item" onclick="showSection('adduser')">
+        <a href="javascript:void(0)" class="nav-item" data-section="adduser" onclick="showSection('adduser')">
             <i class="fas fa-user-plus nav-icon"></i>
             <span class="nav-label">Add User</span>
         </a>
-        <a href="javascript:void(0)" class="nav-item" onclick="showSection('bulk')">
+        <a href="javascript:void(0)" class="nav-item" data-section="bulk" onclick="showSection('bulk')">
             <i class="fas fa-cogs nav-icon"></i>
             <span class="nav-label">Bulk</span>
         </a>
-        <a href="javascript:void(0)" class="nav-item" onclick="showSection('reports')">
+        <a href="javascript:void(0)" class="nav-item" data-section="reports" onclick="showSection('reports')">
             <i class="fas fa-chart-bar nav-icon"></i>
             <span class="nav-label">{{t.reports}}</span>
-        </a>
-        <a href="javascript:void(0)" class="nav-item" onclick="openSettings()">
-            <i class="fas fa-cog nav-icon"></i>
-            <span class="nav-label">{{t.settings}}</span>
         </a>
     </div>
 </nav>
 
-<!-- Settings Modal -->
-<div id="settingsModal" class="settings-modal">
-    <div class="settings-content">
-        <div class="settings-header">
+<!-- Custom Modal for User Edit (Password/HWID) -->
+<div id="editUserModal" class="custom-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Edit User: <span id="editUsername"></span></h3>
+            <button class="close-modal" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="editForm" onsubmit="submitEdit(event)">
+            <input type="hidden" id="editOriginalUser">
+            <div class="form-group">
+                <label>{{t.password}}</label>
+                <input type="text" id="editPassword" required>
+            </div>
+            <div class="form-group">
+                <label>{{t.hwid}}</label>
+                <input type="text" id="editHWID" placeholder="Hardware ID">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+        </form>
+    </div>
+</div>
+
+
+<!-- Settings Modal (Remains the same structure) -->
+<div id="settingsModal" class="custom-modal">
+    <div class="modal-content">
+        <div class="modal-header">
             <h3><i class="fas fa-cog"></i> {{t.settings}}</h3>
-            <button class="close-settings" onclick="closeSettings()">&times;</button>
+            <button class="close-modal" onclick="closeSettings()">&times;</button>
         </div>
         
         <div class="setting-group">
             <label class="setting-label"><i class="fas fa-palette"></i> Theme</label>
             <div class="theme-options">
-                <div class="theme-option active" data-theme="dark" onclick="changeTheme('dark')">
+                <div class="theme-option {% if theme == 'dark' %}active{% endif %}" data-theme="dark" onclick="changeTheme('dark')">
                     <i class="fas fa-moon"></i> Dark
                 </div>
-                <div class="theme-option" data-theme="light" onclick="changeTheme('light')">
+                <div class="theme-option {% if theme == 'light' %}active{% endif %}" data-theme="light" onclick="changeTheme('light')">
                     <i class="fas fa-sun"></i> Light
                 </div>
             </div>
@@ -934,10 +988,12 @@ tr:hover {
         <div class="setting-group">
             <label class="setting-label"><i class="fas fa-language"></i> Language</label>
             <div class="lang-options">
-                <div class="lang-option active" data-lang="my" onclick="changeLanguage('my')">
+                <!-- Check if the current language is 'my' -->
+                <div class="lang-option {% if lang == 'my' %}active{% endif %}" data-lang="my" onclick="changeLanguage('my')">
                     <i class="fas fa-language"></i> မြန်မာ
                 </div>
-                <div class="lang-option" data-lang="en" onclick="changeLanguage('en')">
+                <!-- Check if the current language is 'en' -->
+                <div class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en" onclick="changeLanguage('en')">
                     <i class="fas fa-language"></i> English
                 </div>
             </div>
@@ -960,6 +1016,14 @@ tr:hover {
 {% endif %}
 
 <script>
+// Parse Jinja translations for use in JS
+const translations = {{t|tojson}};
+const allUsers = [
+    {% for u in users %}
+    {user: "{{u.user}}", password: "{{u.password}}", hwid: "{{u.hwid}}", status: "{{u.status|lower}}", expires: "{{u.expires}}"},
+    {% endfor %}
+];
+
 // Navigation Functions
 function showSection(sectionId) {
     // Hide all sections
@@ -974,16 +1038,21 @@ function showSection(sectionId) {
     
     // Show selected section and activate nav item
     document.getElementById(sectionId).classList.add('active');
-    event.currentTarget.classList.add('active');
+    
+    // Find the corresponding nav item using data-section
+    const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+    if (navItem) {
+        navItem.classList.add('active');
+    }
 }
 
-// Settings Modal Functions
+// Settings Modal Functions (Now uses custom-modal class)
 function openSettings() {
-    document.getElementById('settingsModal').style.display = 'block';
+    document.getElementById('settingsModal').classList.add('active');
 }
 
 function closeSettings() {
-    document.getElementById('settingsModal').style.display = 'none';
+    document.getElementById('settingsModal').classList.remove('active');
 }
 
 // Theme Functions
@@ -1003,7 +1072,7 @@ function changeLanguage(lang) {
     window.location.href = '/set_lang?lang=' + lang;
 }
 
-// Initialize theme from localStorage
+// Initialize theme/nav from localStorage
 document.addEventListener('DOMContentLoaded', () => {
     const storedTheme = localStorage.getItem('theme') || 'dark';
     document.body.setAttribute('data-theme', storedTheme);
@@ -1015,20 +1084,36 @@ document.addEventListener('DOMContentLoaded', () => {
             option.classList.add('active');
         }
     });
+
+    // Handle initial active section (if not home)
+    const activeSection = document.querySelector('.content-section.active');
+    if (activeSection) {
+         const sectionId = activeSection.id;
+         const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+         if (navItem) {
+             navItem.classList.add('active');
+         }
+    }
 });
 
 // User Management Functions
 function filterUsers() {
+    // Search by User or HWID
     const search = document.getElementById('searchUser').value.toLowerCase();
+    
     document.querySelectorAll('#userTable tbody tr').forEach(row => {
-        const user = row.cells[0].textContent.toLowerCase();
-        row.style.display = user.includes(search) ? '' : 'none';
+        const user = row.getAttribute('data-user').toLowerCase();
+        const hwid = row.getAttribute('data-hwid').toLowerCase();
+        
+        // Search by User OR HWID
+        const shouldShow = user.includes(search) || hwid.includes(search);
+        row.style.display = shouldShow ? '' : 'none';
     });
 }
 
 function deleteUser(username) {
-    const t = {{t|tojson}};
-    if (confirm(t.delete_confirm.replace('{user}', username))) {
+    // Uses Burmese/English confirmation text from translations object
+    if (confirm(translations.delete_confirm.replace('{user}', username))) {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/delete';
@@ -1044,35 +1129,50 @@ function deleteUser(username) {
     }
 }
 
-function editUser(username) {
-    const t = {{t|tojson}};
-    const newPass = prompt(t.password + ' အသစ် ထည့်ပါ (' + username + '):');
-    if (newPass) {
-        fetch('/api/user/update', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({user: username, password: newPass})
-        }).then(r => r.json()).then(data => {
-            alert(data.message); 
-            location.reload();
-        }).catch(e => {
-            alert('Error: ' + e.message);
-        });
-    }
+// NEW: Edit Modal Functions (Password and HWID)
+function openEditModal(username, password, hwid) {
+    document.getElementById('editUsername').textContent = username;
+    document.getElementById('editOriginalUser').value = username;
+    document.getElementById('editPassword').value = password;
+    document.getElementById('editHWID').value = (hwid === 'None' || hwid === 'null' || hwid === '-') ? '' : hwid;
+    document.getElementById('editUserModal').classList.add('active');
 }
+
+function closeEditModal() {
+    document.getElementById('editUserModal').classList.remove('active');
+}
+
+function submitEdit(event) {
+    event.preventDefault();
+    const user = document.getElementById('editOriginalUser').value;
+    const password = document.getElementById('editPassword').value;
+    const hwid = document.getElementById('editHWID').value;
+
+    fetch('/api/user/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user, password, hwid})
+    }).then(r => r.json()).then(data => {
+        alert(data.message); 
+        closeEditModal();
+        location.reload();
+    }).catch(e => {
+        alert('Error updating user: ' + e.message);
+    });
+}
+
 
 // Bulk Action Function
 function executeBulkAction() {
-    const t = {{t|tojson}};
     const action = document.getElementById('bulkAction').value;
     const users = document.getElementById('bulkUsers').value;
     
     if (!action || !users) { 
-        alert(t.select_action + ' / ' + t.user + ' လိုအပ်သည်'); 
+        alert(translations.select_action + ' / ' + translations.user + ' လိုအပ်သည်'); 
         return; 
     }
 
-    if (action === 'delete' && !confirm(t.delete_users + ' ' + users + ' ကို ဖျက်ရန် သေချာပါသလား?')) return;
+    if (action === 'delete' && !confirm(translations.delete_users + ' ' + users + ' ကို ဖျက်ရန် သေချာပါသလား?')) return;
     
     fetch('/api/bulk', {
         method: 'POST',
@@ -1092,10 +1192,9 @@ function generateReport() {
     const to = document.getElementById('toDate').value;
     const type = document.getElementById('reportType').value;
     const reportResults = document.getElementById('reportResults');
-    const t = {{t|tojson}};
 
     if (!from || !to) {
-        alert(t.report_range);
+        alert(translations.report_range);
         return;
     }
 
@@ -1116,11 +1215,16 @@ function generateReport() {
         });
 }
 
-// Close settings when clicking outside
+// Close modals when clicking outside
 window.onclick = function(event) {
-    const modal = document.getElementById('settingsModal');
-    if (event.target === modal) {
+    const settingsModal = document.getElementById('settingsModal');
+    const editModal = document.getElementById('editUserModal');
+    
+    if (event.target === settingsModal) {
         closeSettings();
+    }
+    if (event.target === editModal) {
+        closeEditModal();
     }
 }
 </script>
