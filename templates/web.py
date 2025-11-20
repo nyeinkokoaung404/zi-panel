@@ -55,7 +55,8 @@ TRANSLATIONS = {
         'server_info': 'Server Information', 'vpn_status': 'VPN Status',
         'active_connections': 'Active Connections',
         'save_login': 'Save Login (14 Days)',
-        'hwid': 'HWID (Hardware ID)'
+        'hwid': 'HWID (Hardware ID)',
+        'cpu': 'CPU Load', 'ram': 'RAM Usage', 'swap': 'Swap Usage', 'disk': 'Disk Used'
     },
     'my': {
         'title': 'ZIVPN စီမံခန့်ခွဲမှု Panel', 'login_title': 'ZIVPN Panel ဝင်ရန်',
@@ -90,7 +91,8 @@ TRANSLATIONS = {
         'recent_activity': 'လတ်တလောလုပ်ဆောင်မှုများ', 'server_info': 'ဆာဗာအချက်အလက်',
         'vpn_status': 'VPN အခြေအနေ', 'active_connections': 'တက်ကြွလင့်ချိတ်ဆက်မှုများ',
         'save_login': 'လော့ဂ်အင် အချက်အလက် သိမ်းမည် (၁၄ ရက်)',
-        'hwid': 'HWID (ဟာ့ဒ်ဝဲလ် အမှတ်အသား)'
+        'hwid': 'HWID (ဟာ့ဒ်ဝဲလ် အမှတ်အသား)',
+        'cpu': 'CPU ဝန်ပမာဏ', 'ram': 'RAM အသုံးပြုမှု', 'swap': 'Swap အသုံးပြုမှု', 'disk': 'Disk အသုံးပြုမှု'
     }
 }
 
@@ -226,6 +228,53 @@ def get_server_stats():
     finally:
         db.close()
 
+def get_system_stats():
+    """VPS ၏ CPU, RAM, Swap, Disk အချက်အလက်များကို ရယူသည်။ (3x-ui ပုံစံ)"""
+    stats = {}
+    
+    # 1. CPU Load (1-minute average from /proc/loadavg)
+    try:
+        load_avg = subprocess.run("cat /proc/loadavg", shell=True, capture_output=True, text=True, timeout=1).stdout.split()[0]
+        stats['cpu_load'] = f"{float(load_avg):.2f}"
+    except Exception:
+        stats['cpu_load'] = "N/A"
+
+    # 2. RAM Usage
+    try:
+        # total_kb, used_kb, free_kb
+        mem_info = subprocess.run("free -m | awk 'NR==2{print $2,$3,$4}'", shell=True, capture_output=True, text=True, timeout=1).stdout.split()
+        total_m = int(mem_info[0])
+        used_m = int(mem_info[1])
+        ram_percent = round((used_m / total_m) * 100, 1) if total_m > 0 else 0
+        stats['ram_used'] = f"{used_m}M / {total_m}M ({ram_percent}%)"
+    except Exception:
+        stats['ram_used'] = "N/A"
+
+    # 3. Swap Usage
+    try:
+        # total_kb, used_kb, free_kb
+        swap_info = subprocess.run("free -m | awk 'NR==3{print $2,$3,$4}'", shell=True, capture_output=True, text=True, timeout=1).stdout.split()
+        total_m = int(swap_info[0])
+        used_m = int(swap_info[1])
+        swap_percent = round((used_m / total_m) * 100, 1) if total_m > 0 else 0
+        stats['swap_used'] = f"{used_m}M / {total_m}M ({swap_percent}%)" if total_m > 0 else "0M / 0M (0%)"
+    except Exception:
+        stats['swap_used'] = "N/A"
+
+    # 4. Disk Usage (Root partition /)
+    try:
+        # total_g, used_g, percent
+        disk_info = subprocess.run("df -h / | awk 'NR==2{print $2,$3,$5}'", shell=True, capture_output=True, text=True, timeout=1).stdout.split()
+        total_g = disk_info[0]
+        used_g = disk_info[1]
+        percent = disk_info[2]
+        stats['disk_used'] = f"{used_g} / {total_g} ({percent})"
+    except Exception:
+        stats['disk_used'] = "N/A"
+        
+    return stats
+
+
 def get_listen_port_from_config():
     cfg=read_json(CONFIG_FILE,{})
     listen=str(cfg.get("listen","")).strip()
@@ -238,8 +287,7 @@ def has_recent_udp_activity(port):
     if not port: 
         return False
     try:
-        # Grep count (-c) is more reliable for Python to interpret than complex shell piping
-        # We need to escape the backslash for the shell, so it's '\\\\b' here.
+        # Check if any connection entry exists for the specific dport
         command = f"conntrack -L -p udp 2>/dev/null | grep -c 'dport={port}\\b'"
         
         result = subprocess.run(
@@ -247,7 +295,7 @@ def has_recent_udp_activity(port):
             shell=True, 
             capture_output=True, 
             text=True, 
-            timeout=5 # Add a timeout in case conntrack hangs
+            timeout=5 
         )
         
         # result.stdout should contain the count (e.g., '1', '5', '0')
@@ -380,9 +428,10 @@ def build_view(msg="", err=""):
         users=load_users()
         listen_port=get_listen_port_from_config()
         stats = get_server_stats()
+        system_stats = get_system_stats() # System Stats အသစ်ကို ခေါ်သည်။
     except Exception as e:
-        # Database Error ဖြစ်ပါက Internal Server Error အစား message ပြသနိုင်သည်။
-        return f"<h1>Error: Database Access Failed</h1><p>Please check if the ZIVPN services are running and if the SQLite database is properly initialized. Detail: {e}</p>", 500
+        # Database/System Error ဖြစ်ပါက Internal Server Error အစား message ပြသနိုင်သည်။
+        return f"<h1>Error: Database or System Access Failed</h1><p>Please check if the ZIVPN services are running and if system commands are accessible. Detail: {e}</p>", 500
 
     view=[]
     today_date=datetime.now().date()
@@ -410,6 +459,7 @@ def build_view(msg="", err=""):
     theme = session.get('theme', 'dark')
     return render_template_string(html_template, authed=True, logo=LOGO_URL, 
                                  users=view, msg=msg, err=err, today=today, stats=stats, 
+                                 system_stats=system_stats, # System Stats ကို Template ထဲသို့ ထည့်သည်။
                                  t=t, lang=g.lang, theme=theme)
 
 @app.route("/", methods=["GET"])
