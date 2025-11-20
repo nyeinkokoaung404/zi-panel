@@ -2,7 +2,7 @@
 <html lang="{{lang}}">
 <head>
     <meta charset="utf-8">
-    <title>{{t.title}} - Channel 404</title>
+    <title>{{t.title}}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta http-equiv="refresh" content="120">
     <!-- Using Padauk for Burmese font -->
@@ -68,14 +68,15 @@ html,body{
     position: relative;
     z-index: 2;
     flex-grow: 1; 
+    text-align: left;
 }
 
 .logo-container {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 15px;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
+    justify-content: flex-start;
 }
 
 .logo {
@@ -89,7 +90,7 @@ html,body{
 
 .header h1 {
     margin: 0;
-    font-size: 1.8em;
+    font-size: 1.5em;
     font-weight: 900;
     color: white;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
@@ -97,8 +98,10 @@ html,body{
 
 .header .subtitle {
     color: rgba(255,255,255,0.9);
-    font-size: 0.9em;
-    margin-top: 5px;
+    font-size: 0.8em;
+    margin-top: 0;
+    margin-left: 65px; 
+    font-weight: 600;
 }
 
 /* Settings Button in Header */
@@ -201,7 +204,7 @@ html,body{
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Stats Grid (FORCED 2x2 layout) */
+/* Stats Grid (User Stats - 1x2 layout as requested) */
 .stats-grid {
     display: grid;
     grid-template-columns: 1fr; 
@@ -210,15 +213,7 @@ html,body{
 }
 @media (min-width: 640px) {
     .stats-grid {
-        grid-template-columns: 1fr 1fr; /* 2x2 for User/Online Stats */
-    }
-    .system-stats-grid {
-        grid-template-columns: 1fr 1fr; /* 2x2 for System Stats */
-    }
-}
-@media (min-width: 1024px) {
-    .stats-grid {
-        grid-template-columns: 1fr 1fr 1fr 1fr; /* Allow 4 columns on large screens for space efficiency */
+        grid-template-columns: 1fr 1fr; /* 1x2 layout for Total/Online Users */
     }
 }
 
@@ -228,7 +223,16 @@ html,body{
     gap: 15px;
     margin: 20px 0;
 }
-
+@media (min-width: 640px) {
+    .system-stats-grid {
+        grid-template-columns: 1fr 1fr; /* 2x2 for System Stats */
+    }
+}
+@media (min-width: 1024px) {
+    .system-stats-grid {
+        grid-template-columns: 1fr 1fr 1fr 1fr; /* 4 columns on large screens */
+    }
+}
 
 .stat-card {
     padding: 20px;
@@ -432,7 +436,6 @@ tr:hover {
     align-items: center;
     justify-content: center;
 }
-/* FIX: Modal visibility when active */
 .custom-modal.active {
     display: flex; 
 }
@@ -518,6 +521,39 @@ tr:hover {
     flex-direction: column;
     gap: 10px;
 }
+
+/* Edit Modal Card Style (based on image) */
+.user-detail-card {
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 15px;
+    margin-bottom: 20px;
+    font-size: 0.9em;
+    border: 1px solid var(--bd);
+}
+
+.user-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px dotted var(--bd);
+}
+.user-detail-row:last-child {
+    border-bottom: none;
+}
+.user-detail-label {
+    color: var(--bd);
+    font-weight: 400;
+}
+.user-detail-value {
+    font-weight: 600;
+    text-align: right;
+    word-break: break-all;
+}
+.value-status-ok { color: var(--ok); }
+.value-status-expired { color: var(--expired); }
+.value-status-bad { color: var(--delete-btn); }
+.value-status-unknown { color: var(--unknown); }
 
 
 /* Login Styles */
@@ -609,7 +645,7 @@ tr:hover {
     }
     
     .header h1 {
-        font-size: 1.5em;
+        font-size: 1.3em;
     }
     
     .stats-grid {
@@ -617,8 +653,9 @@ tr:hover {
         gap: 12px;
     }
     
-    .quick-actions {
-        grid-template-columns: repeat(2, 1fr);
+    .system-stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
     }
     
     .form-grid {
@@ -637,10 +674,6 @@ tr:hover {
 
 @media (max-width: 480px) {
     .stats-grid, .system-stats-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .quick-actions {
         grid-template-columns: 1fr;
     }
     
@@ -723,20 +756,22 @@ tr:hover {
                 <div class="stat-number">{{ stats.active_users }}</div>
                 <div class="stat-label">{{t.active_users}}</div>
             </div>
-            <!-- Bandwidth Used and Server Load removed as requested -->
         </div>
 
         <!-- System Stats (CPU, RAM, Swap, Disk - 2x2 Bottom Rows) -->
         <div class="form-card">
             <h3 class="form-title"><i class="fas fa-server"></i> {{t.server_info}}</h3>
             <div class="system-stats-grid">
+                 <!-- CPU Load -->
                  <div class="stat-card" style="padding:15px;">
                     <div class="stat-icon" style="color: #6366f1;">
                         <i class="fas fa-microchip"></i>
                     </div>
+                    <!-- Displaying the load average from the fixed web.py function -->
                     <div class="stat-number" style="font-size: 1.5em; margin: 0;">{{ system_stats.cpu_load }}</div>
-                    <div class="stat-label">{{t.cpu}}</div>
+                    <div class="stat-label">{{t.cpu}} (1 min)</div>
                 </div>
+                <!-- RAM Usage -->
                 <div class="stat-card" style="padding:15px;">
                     <div class="stat-icon" style="color: #f43f5e;">
                         <i class="fas fa-memory"></i>
@@ -744,6 +779,7 @@ tr:hover {
                     <div class="stat-number" style="font-size: 1.5em; margin: 0;">{{ system_stats.ram_used }}</div>
                     <div class="stat-label">{{t.ram}}</div>
                 </div>
+                <!-- Swap Usage -->
                 <div class="stat-card" style="padding:15px;">
                     <div class="stat-icon" style="color: #06b6d4;">
                         <i class="fas fa-exchange-alt"></i>
@@ -751,6 +787,7 @@ tr:hover {
                     <div class="stat-number" style="font-size: 1.5em; margin: 0;">{{ system_stats.swap_used }}</div>
                     <div class="stat-label">{{t.swap}}</div>
                 </div>
+                <!-- Disk Usage -->
                 <div class="stat-card" style="padding:15px;">
                     <div class="stat-icon" style="color: #fbbf24;">
                         <i class="fas fa-hdd"></i>
@@ -820,7 +857,7 @@ tr:hover {
                                 <i class="fas fa-trash"></i>
                             </button>
                             <!-- Updated Edit button to open custom modal -->
-                            <button class="action-btn btn-primary" onclick="openEditModal('{{u.user}}', '{{u.password}}', '{{u.hwid}}')" title="Edit">
+                            <button class="action-btn btn-primary" onclick="openEditModal('{{u.user}}', '{{u.password}}', '{{u.hwid}}', '{{u.expires}}', '{{u.days_left}}', '{{u.port}}', '{{u.status}}', '{{u.server_ip}}')" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
                         </div>
@@ -971,32 +1008,43 @@ tr:hover {
     </div>
 </nav>
 
-<!-- Custom Modal for User Edit (Password/HWID) -->
+<!-- Custom Modal for User Edit (Password/HWID) - Styled like the user's image -->
 <div id="editUserModal" class="custom-modal">
     <div class="modal-content">
-        <div class="modal-header">
-            <h3><i class="fas fa-edit"></i> Edit User: <span id="editUsername"></span></h3>
-            <button class="close-modal" onclick="closeEditModal()">&times;</button>
+        <div class="modal-header" style="border-bottom: none;">
+            <!-- Top user info (Good, PORT 6005) -->
+            <h3 style="margin: 0; display:flex; align-items:center; gap: 8px;"><span id="editUsername"></span></h3>
+            <div id="editPort" class="pill pill-online"></div>
         </div>
+
+        <div class="user-detail-card" id="userInfoDisplay">
+            <!-- Details will be populated by JS -->
+        </div>
+
         <form id="editForm" onsubmit="submitEdit(event)">
             <input type="hidden" id="editOriginalUser">
+            
             <div class="form-group">
-                <label>{{t.password}}</label>
+                <label><i class="fas fa-key"></i> {{t.password}}</label>
                 <input type="text" id="editPassword" required>
             </div>
             <div class="form-group">
-                <label>{{t.hwid}}</label>
+                <label><i class="fas fa-fingerprint"></i> {{t.hwid}}</label>
                 <input type="text" id="editHWID" placeholder="Hardware ID">
             </div>
+            
             <button type="submit" class="btn btn-primary btn-block">
                 <i class="fas fa-save"></i> Save Changes
+            </button>
+            <button type="button" class="btn btn-danger btn-block" style="margin-top: 10px;" onclick="deleteUser(document.getElementById('editOriginalUser').value)">
+                <i class="fas fa-trash"></i> Delete
             </button>
         </form>
     </div>
 </div>
 
 
-<!-- Settings Modal -->
+<!-- Settings Modal (Modernized) -->
 <div id="settingsModal" class="custom-modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -1016,26 +1064,30 @@ tr:hover {
         
         <!-- Theme Content -->
         <div id="themeContent" class="setting-group-content active">
-            <label class="setting-label">Choose Theme</label>
-            <div class="theme-options">
-                <div class="theme-option {% if theme == 'dark' %}active{% endif %}" data-theme="dark" onclick="changeTheme('dark')">
-                    <i class="fas fa-moon"></i> Dark
-                </div>
-                <div class="theme-option {% if theme == 'light' %}active{% endif %}" data-theme="light" onclick="changeTheme('light')">
-                    <i class="fas fa-sun"></i> Light
+            <div class="setting-group">
+                <label class="setting-label">Choose Theme</label>
+                <div class="theme-options">
+                    <div class="theme-option {% if theme == 'dark' %}active{% endif %}" data-theme="dark" onclick="changeTheme('dark')">
+                        <i class="fas fa-moon"></i> Dark
+                    </div>
+                    <div class="theme-option {% if theme == 'light' %}active{% endif %}" data-theme="light" onclick="changeTheme('light')">
+                        <i class="fas fa-sun"></i> Light
+                    </div>
                 </div>
             </div>
         </div>
         
         <!-- Language Content -->
         <div id="languageContent" class="setting-group-content">
-            <label class="setting-label">Choose Language</label>
-            <div class="lang-options">
-                <div class="lang-option {% if lang == 'my' %}active{% endif %}" data-lang="my" onclick="changeLanguage('my')">
-                    <i class="fas fa-language"></i> မြန်မာ
-                </div>
-                <div class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en" onclick="changeLanguage('en')">
-                    <i class="fas fa-language"></i> English
+            <div class="setting-group">
+                <label class="setting-label">Choose Language</label>
+                <div class="lang-options">
+                    <div class="lang-option {% if lang == 'my' %}active{% endif %}" data-lang="my" onclick="changeLanguage('my')">
+                        <i class="fas fa-language"></i> မြန်မာ
+                    </div>
+                    <div class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en" onclick="changeLanguage('en')">
+                        <i class="fas fa-language"></i> English
+                    </div>
                 </div>
             </div>
         </div>
@@ -1059,7 +1111,18 @@ tr:hover {
 const translations = {{t|tojson}};
 const allUsers = [
     {% for u in users %}
-    {user: "{{u.user}}", password: "{{u.password}}", hwid: "{{u.hwid}}", status: "{{u.status|lower}}", expires: "{{u.expires}}"},
+    {
+        user: "{{u.user}}", 
+        password: "{{u.password}}", 
+        hwid: "{{u.hwid}}", 
+        status: "{{u.status}}", 
+        expires: "{{u.expires}}",
+        days_left: "{{u.days_left}}",
+        port: "{{u.port}}",
+        server_ip: "{{u.server_ip}}",
+        bw_used: "{{u.bandwidth_used}}",
+        bw_limit: "{{u.bandwidth_limit}}"
+    },
     {% endfor %}
 ];
 
@@ -1095,6 +1158,8 @@ function openSettings() {
 
 function closeSettings() {
     document.getElementById('settingsModal').classList.remove('active');
+    // Also close edit modal if open (safety)
+    document.getElementById('editUserModal').classList.remove('active'); 
 }
 
 function showSettingTab(tabName) {
@@ -1205,13 +1270,67 @@ function deleteUser(username) {
 }
 
 // Edit Modal Functions (Password and HWID)
-function openEditModal(username, password, hwid) {
+function openEditModal(username, password, hwid, expires, days_left, port, status, server_ip) {
+    
+    // 1. Set form data
     document.getElementById('editUsername').textContent = username;
     document.getElementById('editOriginalUser').value = username;
     document.getElementById('editPassword').value = password;
-    // Set HWID field, replacing 'None', 'null', or '-' with empty string for editing
     document.getElementById('editHWID').value = (hwid === 'None' || hwid === 'null' || hwid === '-') ? '' : hwid;
-    // FIX 2: Add active class to show the modal
+
+    // 2. Format port display
+    const portElement = document.getElementById('editPort');
+    portElement.textContent = 'PORT ' + (port || 'N/A');
+    portElement.className = 'pill pill-online'; // Styling fix
+
+    // 3. Format status display and get color class
+    let statusClass = 'value-status-ok';
+    if (status.toLowerCase() === 'expired') {
+        statusClass = 'value-status-expired';
+    } else if (status.toLowerCase() === 'suspended' || status.toLowerCase() === 'offline') {
+        statusClass = 'value-status-bad';
+    } else if (status.toLowerCase() === 'online') {
+        statusClass = 'value-status-ok';
+    }
+
+    // 4. Build info display (based on image aesthetic)
+    const infoDisplay = document.getElementById('userInfoDisplay');
+    const user = allUsers.find(u => u.user === username);
+    
+    let html = `
+        <div class="user-detail-row">
+            <span class="user-detail-label">{{t.vps_ip}}</span>
+            <span class="user-detail-value">${server_ip}</span>
+        </div>
+        <div class="user-detail-row">
+            <span class="user-detail-label">{{t.username}}</span>
+            <span class="user-detail-value">${username}</span>
+        </div>
+        <div class="user-detail-row">
+            <span class="user-detail-label">{{t.password}}</span>
+            <span class="user-detail-value">${password}</span>
+        </div>
+        <div class="user-detail-row">
+            <span class="user-detail-label">{{t.hwid}}</span>
+            <span class="user-detail-value">${hwid || '-'}</span>
+        </div>
+        <div class="user-detail-row">
+            <span class="user-detail-label">{{t.day_left}}</span>
+            <span class="user-detail-value value-status-ok">${days_left}</span>
+        </div>
+        <div class="user-detail-row">
+            <span class="user-detail-label">{{t.expire_date}}</span>
+            <span class="user-detail-value">${expires || 'N/A'}</span>
+        </div>
+        <div class="user-detail-row" style="border-bottom: none;">
+            <span class="user-detail-label">{{t.status}}</span>
+            <span class="user-detail-value ${statusClass}">${status}</span>
+        </div>
+    `;
+    infoDisplay.innerHTML = html;
+
+
+    // 5. Show modal
     document.getElementById('editUserModal').classList.add('active');
 }
 
