@@ -128,7 +128,6 @@ html,body{
     transform: rotate(45deg);
 }
 
-
 /* Bottom Navigation Bar */
 .bottom-nav {
     position: fixed;
@@ -368,8 +367,7 @@ table {
     width: 100%;
     border-collapse: collapse;
     background: var(--card);
-    /* Mobile Fix: ensure table doesn't force container width */
-    min-width: 600px; /* Set a reasonable minimum width for horizontal scroll */
+    min-width: 600px; /* Base width for desktop/tablet */
 }
 
 th, td {
@@ -531,12 +529,12 @@ tr:hover {
 
 /* User Detail Card (ALWAYS VISIBLE IN TABLE) - Styled like the image */
 .user-detail-card {
-    background: var(--bg);
+    background: var(--card); /* Use card background for better contrast */
     border-radius: var(--radius);
     padding: 15px;
     margin-top: 10px;
     font-size: 0.9em;
-    border: 1px solid var(--bd);
+    /* Removed border */
     display: grid;
     grid-template-columns: 1fr 1fr; /* Two columns for label/value */
     gap: 5px 15px; /* Vertical and horizontal gap */
@@ -642,7 +640,7 @@ tr:hover {
     width: 26px;
     left: 4px;
     bottom: 4px;
-    background-color: var(--card);
+    background-color: var(--bg); /* Use background color for slider knob */
     transition: .4s;
     border-radius: 50%;
 }
@@ -682,45 +680,82 @@ input:checked + .slider .toggle-text.on {
     opacity: 1;
 }
 
-/* Mobile Fix: Hide unnecessary columns on small screens */
+
+/* --- Mobile/Card View Specific CSS --- */
+
+/* Hide the entire table on small screens, show card view */
 @media (max-width: 768px) {
-    /* Hide Port, Expires, Status columns on smaller screens */
-    #userTable th:nth-child(2),
-    #userTable td:nth-child(2), /* Port */
-    #userTable th:nth-child(3), 
-    #userTable td:nth-child(3), /* Expires */
-    #userTable th:nth-child(4),
-    #userTable td:nth-child(4), /* Status */
-    #userTable th:nth-child(6),
-    #userTable td:nth-child(6) { /* Details/Toggle Column */
-        display: none;
+    .table-container {
+        display: none; /* Hide the desktop table entirely */
+    }
+    .mobile-user-list {
+        display: block; /* Show the mobile card list */
+    }
+    .form-card {
+        padding: 15px;
+    }
+    .user-card-mobile {
+        background: var(--card);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 15px;
+        margin-bottom: 15px;
+        border: 1px solid var(--bd);
+        
+        /* Mobile structure resembles the desired image */
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto 1fr auto;
+        gap: 10px;
     }
 
-    /* Adjust main row cells to occupy full width */
-    #userTable th:nth-child(1),
-    #userTable td:nth-child(1) { /* User column (now acts as the main info container) */
-        width: 65% !important;
+    .user-card-header {
+        grid-column: 1 / 3;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--bd);
     }
-    #userTable th:nth-child(5),
-    #userTable td:nth-child(5) { /* Actions column */
-        width: 35% !important;
+    .user-card-name {
+        font-size: 1.2em;
+        font-weight: 700;
+        color: var(--primary-btn);
     }
 
-    /* Force the detail row to be part of the main display flow */
-    .detail-row td {
-        padding: 0 10px 15px 10px !important;
-    }
-    .user-detail-card {
-        padding: 10px;
-        grid-template-columns: 1fr 1fr;
+    .user-card-port {
+        grid-column: 2 / 3;
+        grid-row: 1;
+        align-self: flex-start;
     }
     
+    .user-card-details {
+        grid-column: 1 / 3;
+        grid-row: 3;
+        margin-top: 10px;
+    }
+    .user-card-actions {
+        grid-column: 1 / 3;
+        grid-row: 4;
+        display: flex;
+        justify-content: flex-start;
+        gap: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--bd);
+    }
 }
+@media (min-width: 769px) {
+    .mobile-user-list {
+        display: none; /* Hide the mobile card list on desktop */
+    }
+}
+
     </style>
 </head>
 <body data-theme="{{theme}}">
 
 {% if not authed %}
+<!-- Login screen remains the same -->
 <div class="login-container">
     <div class="login-card">
         <img src="{{ logo }}" alt="ZIVPN" class="login-logo">
@@ -858,7 +893,8 @@ input:checked + .slider .toggle-text.on {
                 </button>
             </div>
         </div>
-
+        
+        <!-- --- Desktop Table View (min-width: 769px) --- -->
         <div class="table-container">
             <table id="userTable">
                 <thead>
@@ -868,19 +904,19 @@ input:checked + .slider .toggle-text.on {
                         <th style="width: 15%;">{{t.expires}}</th>
                         <th style="width: 15%;">{{t.status}}</th>
                         <th style="width: 25%;">{{t.actions}}</th>
-                        <!-- Removed Toggle Column -->
                     </tr>
                 </thead>
                 <tbody>
                 {% for u in users %}
+                <!-- Main Row (Desktop Only Columns) -->
                 <tr class="main-row" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}"> 
                     <!-- Col 1: Username -->
                     <td><strong>{{u.user}}</strong></td>
-                    <!-- Col 2: Port (Hidden on mobile) -->
+                    <!-- Col 2: Port -->
                     <td><div class="pill pill-online" style="background-color: var(--ok); width: fit-content;">PORT {{u.port or 'N/A'}}</div></td>
-                    <!-- Col 3: Expires (Hidden on mobile) -->
+                    <!-- Col 3: Expires -->
                     <td>{{u.expires or '-'}}</td>
-                    <!-- Col 4: Status (Hidden on mobile) -->
+                    <!-- Col 4: Status -->
                     <td>
                         <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
                     </td>
@@ -896,7 +932,7 @@ input:checked + .slider .toggle-text.on {
                         </div>
                     </td>
                 </tr>
-                <!-- Detail Row (ALWAYS VISIBLE, spans all columns) -->
+                <!-- Detail Row (Desktop Only) -->
                 <tr class="detail-row" id="detail-row-{{loop.index0}}" style="display:table-row;">
                     <td colspan="5" style="padding-top: 5px; padding-bottom: 20px; border-bottom: 2px solid var(--bd);">
                         <div class="user-detail-card">
@@ -922,7 +958,7 @@ input:checked + .slider .toggle-text.on {
                             </div>
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-tachometer-alt"></i> {{t.status}}</span>
-                                <span class="user-detail-value pill pill-{{u.status|lower}}">{{u.status}}</span>
+                                <span class="user-detail-value pill pill-{{u.status|lower}}" style="width: fit-content; justify-self: end;">{{u.status}}</span>
                             </div>
                         </div>
                     </td>
@@ -931,9 +967,70 @@ input:checked + .slider .toggle-text.on {
                 </tbody>
             </table>
         </div>
+        
+        <!-- --- Mobile Card View (max-width: 768px) --- -->
+        <div class="mobile-user-list">
+            {% for u in users %}
+            <div class="user-card-mobile" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}">
+                <!-- Row 1: Name, Port, Status -->
+                <div class="user-card-header">
+                    <div class="user-card-name">
+                        <i class="fas fa-user-circle" style="margin-right: 5px;"></i> {{u.user}}
+                    </div>
+                    <div class="user-card-port pill pill-online" style="background-color: var(--ok); width: fit-content;">PORT {{u.port or 'N/A'}}</div>
+                </div>
+                
+                <!-- Row 2: Status (for better visibility) -->
+                <div style="grid-column: 1 / 2; grid-row: 2; margin-top: 5px;">
+                    <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
+                </div>
+                
+                <!-- Row 3: Details -->
+                <div class="user-card-details">
+                     <div class="user-detail-card" style="background: var(--bg); border: none; padding: 0;">
+                        <div class="user-detail-row">
+                            <span class="user-detail-label">{{t.vps_ip}}</span>
+                            <span class="user-detail-value">{{u.server_ip}}</span>
+                        </div>
+                        <div class="user-detail-row">
+                            <span class="user-detail-label">{{t.password}}</span>
+                            <span class="user-detail-value">{{u.password}}</span>
+                        </div>
+                        <div class="user-detail-row">
+                            <span class="user-detail-label">{{t.hwid}}</span>
+                            <span class="user-detail-value">{{u.hwid or 'N/A'}}</span>
+                        </div>
+                        <div class="user-detail-row">
+                            <span class="user-detail-label">{{t.day_left}}</span>
+                            <span class="user-detail-value {{u.days_left_class}}">{{u.days_left}}</span>
+                        </div>
+                        <div class="user-detail-row">
+                            <span class="user-detail-label">{{t.expire_date}}</span>
+                            <span class="user-detail-value">{{u.expires or 'N/A'}}</span>
+                        </div>
+                        <!-- Removed duplicate status row -->
+                        <div class="user-detail-row" style="border-bottom: none;">
+                            <span class="user-detail-label">{{t.max_conn}}</span>
+                            <span class="user-detail-value">{{u.concurrent_conn}}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Row 4: Actions -->
+                <div class="user-card-actions">
+                     <button class="btn btn-primary" onclick="openEditModal('{{u.user}}', '{{u.password}}', '{{u.hwid}}')" title="Edit Credentials">
+                        <i class="fas fa-key"></i> Edit
+                    </button>
+                    <button class="btn btn-danger" onclick="deleteUser('{{u.user}}')" title="Delete User">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
-    <!-- Add User Section -->
+    <!-- Add User Section (rest of the sections remain the same) -->
     <div id="adduser" class="content-section">
         <form method="post" action="/add" class="form-card">
             <h3 class="form-title"><i class="fas fa-user-plus"></i> {{t.add_user}}</h3>
@@ -1166,25 +1263,6 @@ input:checked + .slider .toggle-text.on {
 <script>
 // Parse Jinja translations for use in JS
 const translations = {{t|tojson}};
-// Accessing data globally for the detail row function
-const allUsers = [
-    {% for u in users %}
-    {
-        user: "{{u.user}}", 
-        password: "{{u.password}}", 
-        hwid: "{{u.hwid}}", 
-        status: "{{u.status}}", 
-        expires: "{{u.expires}}",
-        days_left: "{{u.days_left}}",
-        days_left_class: "{{u.days_left_class}}",
-        port: "{{u.port}}",
-        server_ip: "{{u.server_ip}}",
-        bw_used: "{{u.bandwidth_used}}",
-        bw_limit: "{{u.bandwidth_limit}}",
-        index: "{{loop.index0}}"
-    },
-    {% endfor %}
-];
 
 // Navigation Functions
 function showSection(sectionId) {
@@ -1296,19 +1374,28 @@ function filterUsers() {
     // Search by User or HWID
     const search = document.getElementById('searchUser').value.toLowerCase();
     
+    // Filter Desktop Table Rows
     document.querySelectorAll('#userTable tbody tr.main-row').forEach(row => {
         const user = row.getAttribute('data-user').toLowerCase();
         const hwid = row.getAttribute('data-hwid').toLowerCase();
         const detailRow = document.getElementById(`detail-row-${row.getAttribute('data-index')}`);
 
-        // Search by User OR HWID
         const shouldShow = user.includes(search) || hwid.includes(search);
         row.style.display = shouldShow ? '' : 'none';
         
-        // Ensure detail row visibility matches main row
+        // Ensure desktop detail row visibility matches main row
         if (detailRow) {
              detailRow.style.display = shouldShow ? 'table-row' : 'none';
         }
+    });
+    
+    // Filter Mobile Card Rows
+    document.querySelectorAll('.mobile-user-list .user-card-mobile').forEach(card => {
+        const user = card.getAttribute('data-user').toLowerCase();
+        const hwid = card.getAttribute('data-hwid').toLowerCase();
+
+        const shouldShow = user.includes(search) || hwid.includes(search);
+        card.style.display = shouldShow ? 'grid' : 'none';
     });
 }
 
