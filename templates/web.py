@@ -133,7 +133,6 @@ def check_and_migrate_db(conn):
             print("MIGRATION: 'hwid' column အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။")
         except sqlite3.OperationalError as e:
             print(f"MIGRATION ERROR: hwid column ထည့်သွင်းရာတွင် အမှား: {e}")
-            # Database lock ကြောင့် ဖြစ်နိုင်ပါက ဆက်လက်လုပ်ဆောင်သည်။
 
 # --- Utility Functions ---
 
@@ -233,15 +232,31 @@ def get_listen_port_from_config():
     m=re.search(r":(\d+)$", listen) if listen else None
     return (m.group(1) if m else LISTEN_FALLBACK)
 
+# FIX: Connection Status check logic - use grep -c for robust counting
 def has_recent_udp_activity(port):
     """conntrack ကိုသုံးပြီး ပေးထားသော port တွင် connection ရှိမရှိ စစ်ဆေးသည်။"""
-    if not port: return False
+    if not port: 
+        return False
     try:
-        # awk command ကိုသုံးပြီး ပေးထားသော dport ဖြင့် connection ရှိမရှိ စစ်သည်။
-        command = f"conntrack -L -p udp 2>/dev/null | awk '/dport={port}\\b/ {{print $1}}' | head -n 1"
-        out=subprocess.run(command, shell=True, capture_output=True, text=True).stdout
-        return bool(out)
-    except Exception:
+        # Grep count (-c) is more reliable for Python to interpret than complex shell piping
+        # We need to escape the backslash for the shell, so it's '\\\\b' here.
+        command = f"conntrack -L -p udp 2>/dev/null | grep -c 'dport={port}\\b'"
+        
+        result = subprocess.run(
+            command, 
+            shell=True, 
+            capture_output=True, 
+            text=True, 
+            timeout=5 # Add a timeout in case conntrack hangs
+        )
+        
+        # result.stdout should contain the count (e.g., '1', '5', '0')
+        count = int(result.stdout.strip() or '0')
+        return count > 0
+
+    except Exception as e:
+        print(f"Error checking conntrack for port {port}: {e}")
+        # If any error occurs, default to Offline for safety
         return False
 
 def status_for_user(u, listen_port):
@@ -383,7 +398,7 @@ def build_view(msg="", err=""):
             "port":u.get("port",""),
             "status":status,
             "bandwidth_limit": u.get('bandwidth_limit', 0),
-            "bandwidth_used": f"{u.get('bandwidth_used', 0) / 1024 / 1024 / 1024:.2f}",
+            "bandwidth_used": f"{u.get('bandwidth_used', 0) / 1024 / 1024 / 1024:.2f} GB",
             "speed_limit": u.get('speed_limit', 0),
             "concurrent_conn": u.get('concurrent_conn', 1),
             "hwid": u.get('hwid', '')
@@ -490,7 +505,7 @@ def activate_user():
         sync_config_passwords()
     return redirect(url_for('index'))
 
-# --- API Routes (No changes, HWID is handled by save/update_user logic) ---
+# --- API Routes ---
 
 @app.route("/api/bulk", methods=["POST"])
 def bulk_operations():
