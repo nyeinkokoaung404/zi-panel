@@ -368,6 +368,8 @@ table {
     width: 100%;
     border-collapse: collapse;
     background: var(--card);
+    /* Mobile Fix: ensure table doesn't force container width */
+    min-width: 600px; /* Set a reasonable minimum width for horizontal scroll */
 }
 
 th, td {
@@ -375,6 +377,7 @@ th, td {
     text-align: left;
     border-bottom: 1px solid var(--bd);
     font-size: 0.85em;
+    vertical-align: top;
 }
 
 th {
@@ -526,7 +529,7 @@ tr:hover {
     gap: 10px;
 }
 
-/* User Detail Card (for Table Toggle) */
+/* User Detail Card (ALWAYS VISIBLE IN TABLE) - Styled like the image */
 .user-detail-card {
     background: var(--bg);
     border-radius: var(--radius);
@@ -534,15 +537,14 @@ tr:hover {
     margin-top: 10px;
     font-size: 0.9em;
     border: 1px solid var(--bd);
-    
-    /* Styling for the details row itself */
     display: grid;
     grid-template-columns: 1fr 1fr; /* Two columns for label/value */
     gap: 5px 15px; /* Vertical and horizontal gap */
+    width: 100%;
 }
 
 .user-detail-row {
-    display: contents; /* Allows children to participate in the grid layout */
+    display: contents; 
 }
 
 .user-detail-label {
@@ -560,7 +562,6 @@ tr:hover {
     padding: 5px 0;
     border-bottom: 1px dotted var(--bd);
 }
-/* Ensure the last elements don't have border */
 .user-detail-card > div:nth-last-child(-n+2) > span {
     border-bottom: none;
 }
@@ -570,43 +571,6 @@ tr:hover {
 .value-status-bad { color: var(--delete-btn); }
 .value-status-unknown { color: var(--unknown); }
 
-
-/* Login Styles */
-.login-container {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--gradient);
-    padding: 20px;
-}
-
-.login-card {
-    background: var(--card);
-    padding: 30px;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
-}
-
-.login-logo {
-    height: 80px;
-    width: 80px;
-    border-radius: 50%;
-    border: 3px solid var(--primary-btn);
-    margin: 0 auto 20px;
-    padding: 5px;
-    background: white;
-}
-
-.login-title {
-    margin: 0 0 20px 0;
-    color: var(--fg);
-    font-size: 1.5em;
-    font-weight: 700;
-}
 
 /* Login Checkbox (Save Login) */
 .checkbox-container {
@@ -697,7 +661,6 @@ input:checked + .slider:before {
     font-size: 10px;
     line-height: 34px;
     font-weight: 700;
-    user-select: none;
 }
 
 /* OFF text */
@@ -719,131 +682,39 @@ input:checked + .slider .toggle-text.on {
     opacity: 1;
 }
 
-/* Messages */
-.alert {
-    padding: 12px 15px;
-    border-radius: var(--radius);
-    margin: 15px 0;
-    font-weight: 600;
-}
-
-.alert-success {
-    background: var(--success);
-    color: white;
-}
-
-.alert-error {
-    background: var(--delete-btn);
-    color: white;
-}
-
-/* TABLE SPECIFIC FIXES for Mobile View */
+/* Mobile Fix: Hide unnecessary columns on small screens */
 @media (max-width: 768px) {
-    /* Hide less important columns on smaller screens */
-    #userTable th:nth-child(2), 
+    /* Hide Port, Expires, Status columns on smaller screens */
+    #userTable th:nth-child(2),
     #userTable td:nth-child(2), /* Port */
     #userTable th:nth-child(3), 
-    #userTable td:nth-child(3) /* Expires */ {
-        display: none;
-    }
-    
-    /* Make the table use block layout for better stacking */
-    .table-container table {
-        display: block;
-        width: 100%;
-        border-radius: var(--radius);
-        overflow: hidden;
-    }
-
-    .table-container thead {
-        display: none; /* Hide header row entirely on mobile */
-    }
-
-    .table-container tbody {
-        display: block;
-    }
-
-    .table-container tr {
-        display: block;
-        margin-bottom: 15px;
-        border: 1px solid var(--bd);
-        border-radius: var(--radius);
-        padding: 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    
-    .table-container tr.main-row {
-        /* Set main row to grid for better control over user/status/actions */
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px;
-        align-items: center;
-        padding: 0;
-        border: none;
-        margin-bottom: 0;
-        box-shadow: none;
-    }
-    
-    .table-container tr.main-row td {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 5px 0;
-        border-bottom: none; 
-        font-size: 1em;
-    }
-
-    .table-container tr.main-row td:first-child {
-        font-size: 1.1em;
-        font-weight: 700;
-        border-bottom: none;
-        grid-column: 1 / 3;
-        padding-bottom: 10px;
-        padding-top: 10px;
-    }
-    
-    /* Hide the 6th empty column (which contained the toggle button before) */
-    .table-container tr.main-row td:last-child {
+    #userTable td:nth-child(3), /* Expires */
+    #userTable th:nth-child(4),
+    #userTable td:nth-child(4), /* Status */
+    #userTable th:nth-child(6),
+    #userTable td:nth-child(6) { /* Details/Toggle Column */
         display: none;
     }
 
-    .table-container td:before {
-        content: attr(data-label);
-        font-weight: 600;
-        margin-right: 10px;
-        color: var(--bd);
+    /* Adjust main row cells to occupy full width */
+    #userTable th:nth-child(1),
+    #userTable td:nth-child(1) { /* User column (now acts as the main info container) */
+        width: 65% !important;
     }
-    
+    #userTable th:nth-child(5),
+    #userTable td:nth-child(5) { /* Actions column */
+        width: 35% !important;
+    }
+
+    /* Force the detail row to be part of the main display flow */
+    .detail-row td {
+        padding: 0 10px 15px 10px !important;
+    }
     .user-detail-card {
-        padding: 0; 
-        margin-top: 10px;
-        border: none;
-        background: transparent;
-    }
-
-    .user-detail-row {
-        padding: 8px 0;
+        padding: 10px;
+        grid-template-columns: 1fr 1fr;
     }
     
-    .table-container tr.detail-row {
-        display: table-row; /* Always show details as a sub-row block */
-        border: none;
-        padding: 0;
-        background: transparent;
-        box-shadow: none;
-    }
-    .table-container tr.detail-row td {
-        padding: 0;
-        border-bottom: 1px solid var(--bd); /* Re-add bottom border for separation */
-    }
-}
-@media (min-width: 769px) {
-    .table-container tr.detail-row {
-        display: table-row !important; /* Always show on desktop */
-    }
-    .table-container tr.main-row td:last-child {
-        display: none; /* Hide toggle column on desktop */
-    }
 }
     </style>
 </head>
@@ -993,49 +864,45 @@ input:checked + .slider .toggle-text.on {
                 <thead>
                     <tr>
                         <th style="width: 30%;">{{t.user}}</th>
-                        <th class="desktop-only" style="width: 15%;">{{t.port}}</th>
-                        <th class="desktop-only" style="width: 15%;">{{t.expires}}</th>
+                        <th style="width: 15%;">{{t.port}}</th>
+                        <th style="width: 15%;">{{t.expires}}</th>
                         <th style="width: 15%;">{{t.status}}</th>
                         <th style="width: 25%;">{{t.actions}}</th>
+                        <!-- Removed Toggle Column -->
                     </tr>
                 </thead>
                 <tbody>
                 {% for u in users %}
                 <tr class="main-row" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}"> 
-                    <td data-label="{{t.username}}"><strong>{{u.user}}</strong></td>
-                    <td class="desktop-only" data-label="{{t.port}}"><div class="pill pill-online" style="background-color: var(--ok); width: fit-content;">PORT {{u.port or 'N/A'}}</div></td>
-                    <td class="desktop-only" data-label="{{t.expires}}">{{u.expires or '-'}}</td>
-                    <td data-label="{{t.status}}">
+                    <!-- Col 1: Username -->
+                    <td><strong>{{u.user}}</strong></td>
+                    <!-- Col 2: Port (Hidden on mobile) -->
+                    <td><div class="pill pill-online" style="background-color: var(--ok); width: fit-content;">PORT {{u.port or 'N/A'}}</div></td>
+                    <!-- Col 3: Expires (Hidden on mobile) -->
+                    <td>{{u.expires or '-'}}</td>
+                    <!-- Col 4: Status (Hidden on mobile) -->
+                    <td>
                         <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
                     </td>
-                    <td data-label="{{t.actions}}">
+                    <!-- Col 5: Actions -->
+                    <td>
                         <div class="action-btns">
-                            <!-- Edit/Update button: opens modal for Password/HWID change -->
                             <button class="action-btn btn-primary" onclick="openEditModal('{{u.user}}', '{{u.password}}', '{{u.hwid}}')" title="Edit Credentials">
-                                <i class="fas fa-key"></i>
+                                <i class="fas fa-key"></i> Edit
                             </button>
                             <button class="action-btn btn-danger" onclick="deleteUser('{{u.user}}')" title="Delete User">
                                 <i class="fas fa-trash"></i>
                             </button>
-                            <!-- Mobile only: Show/Hide Details is no longer needed but keep button for consistency in template design -->
-                            <button class="action-btn btn-success mobile-only" onclick="toggleDetailRow(this, 'detail-row-{{loop.index0}}')" title="{{t.show_details}}">
-                                <i class="fas fa-info"></i> {{t.show_details}}
-                            </button>
                         </div>
                     </td>
                 </tr>
-                
-                <!-- Detail Row (Always displayed as table row, but styled as a block on mobile) -->
-                <tr class="detail-row" id="detail-row-{{loop.index0}}">
-                    <td colspan="5">
+                <!-- Detail Row (ALWAYS VISIBLE, spans all columns) -->
+                <tr class="detail-row" id="detail-row-{{loop.index0}}" style="display:table-row;">
+                    <td colspan="5" style="padding-top: 5px; padding-bottom: 20px; border-bottom: 2px solid var(--bd);">
                         <div class="user-detail-card">
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-server"></i> {{t.vps_ip}}</span>
                                 <span class="user-detail-value">{{u.server_ip}}</span>
-                            </div>
-                            <div class="user-detail-row">
-                                <span class="user-detail-label"><i class="fas fa-user"></i> {{t.username}}</span>
-                                <span class="user-detail-value">{{u.user}}</span>
                             </div>
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-lock"></i> {{t.password}}</span>
@@ -1056,10 +923,6 @@ input:checked + .slider .toggle-text.on {
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-tachometer-alt"></i> {{t.status}}</span>
                                 <span class="user-detail-value pill pill-{{u.status|lower}}">{{u.status}}</span>
-                            </div>
-                            <div class="user-detail-row" style="border-bottom: none;">
-                                <span class="user-detail-label"><i class="fas fa-link"></i> {{t.max_conn}}</span>
-                                <span class="user-detail-value">{{u.concurrent_conn}}</span>
                             </div>
                         </div>
                     </td>
@@ -1275,7 +1138,7 @@ input:checked + .slider .toggle-text.on {
         <!-- Language Content (Toggle Switch) -->
         <div id="languageContent" class="setting-group-content">
              <div class="toggle-container">
-                <span class="toggle-label"><i class="fas fa-language"></i> Language ({{lang == 'my' ? 'မြန်မာ' : 'English'}})</span>
+                <span class="toggle-label"><i class="fas fa-language"></i> Language</span>
                 <label class="toggle-switch">
                     <input type="checkbox" id="langToggle" onchange="toggleLanguage(this.checked)">
                     <span class="slider">
@@ -1347,7 +1210,9 @@ function showSection(sectionId) {
 
 // Settings Modal Functions
 function openSettings() {
+    // FIX 1: Add active class to show the modal
     document.getElementById('settingsModal').classList.add('active');
+    // Initialize to show Theme tab first
     showSettingTab('theme');
     
     // Set initial toggle state based on current theme/lang
@@ -1360,18 +1225,22 @@ function openSettings() {
 
 function closeSettings() {
     document.getElementById('settingsModal').classList.remove('active');
+    // Also close edit modal if open (safety)
     document.getElementById('editUserModal').classList.remove('active'); 
 }
 
 function showSettingTab(tabName) {
+    // Hide all tab content
     document.querySelectorAll('.setting-group-content').forEach(content => {
         content.classList.remove('active');
     });
     
+    // Deactivate all tab buttons
     document.querySelectorAll('.settings-tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
     
+    // Show selected tab content and activate button
     const contentElement = document.getElementById(tabName + 'Content');
     const buttonElement = document.querySelector(`.settings-tab-btn[data-tab="${tabName}"]`);
     
@@ -1401,6 +1270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const storedTheme = localStorage.getItem('theme') || 'dark';
     document.body.setAttribute('data-theme', storedTheme);
     
+    // Set initial state of theme toggle on page load (important for UI consistency)
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
         themeToggle.checked = (storedTheme === 'dark');
@@ -1410,6 +1280,7 @@ document.addEventListener('DOMContentLoaded', () => {
         langToggle.checked = (document.documentElement.lang === 'my');
     }
 
+    // Handle initial active section (if not home)
     const activeSection = document.querySelector('.content-section.active');
     if (activeSection) {
          const sectionId = activeSection.id;
@@ -1422,6 +1293,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // User Management Functions
 function filterUsers() {
+    // Search by User or HWID
     const search = document.getElementById('searchUser').value.toLowerCase();
     
     document.querySelectorAll('#userTable tbody tr.main-row').forEach(row => {
@@ -1429,10 +1301,11 @@ function filterUsers() {
         const hwid = row.getAttribute('data-hwid').toLowerCase();
         const detailRow = document.getElementById(`detail-row-${row.getAttribute('data-index')}`);
 
+        // Search by User OR HWID
         const shouldShow = user.includes(search) || hwid.includes(search);
         row.style.display = shouldShow ? '' : 'none';
         
-        // Always show detail row, but hide if main row is hidden
+        // Ensure detail row visibility matches main row
         if (detailRow) {
              detailRow.style.display = shouldShow ? 'table-row' : 'none';
         }
@@ -1440,6 +1313,7 @@ function filterUsers() {
 }
 
 function deleteUser(username) {
+    // Uses Burmese/English confirmation text from translations object
     if (confirm(translations.delete_confirm.replace('{user}', username))) {
         const form = document.createElement('form');
         form.method = 'POST';
@@ -1456,15 +1330,16 @@ function deleteUser(username) {
     }
 }
 
-// NOTE: toggleDetailRow is now removed from the JS and functionality moved to CSS/HTML/filterUsers
-
 // Edit Modal Functions (Password and HWID)
 function openEditModal(username, password, hwid) {
+    
+    // 1. Set form data
     document.getElementById('editUsername').textContent = username;
     document.getElementById('editOriginalUser').value = username;
     document.getElementById('editPassword').value = password;
     document.getElementById('editHWID').value = (hwid === 'None' || hwid === 'null' || hwid === '-') ? '' : hwid;
 
+    // 2. Show modal
     document.getElementById('editUserModal').classList.add('active');
 }
 
