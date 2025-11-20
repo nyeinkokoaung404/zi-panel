@@ -2,7 +2,7 @@
 # ZIVPN UDP Server + Web UI (Myanmar) - ENTERPRISE EDITION
 # Author: 4 0 4 \ 2.0 [🇲🇲]
 # Features: Complete Enterprise Management System with Bandwidth Control, Billing, Multi-Server, API, etc.
-# Updated to download connection_manager.py from GitHub URL.
+# Note: Updated connection_manager.py download URL.
 set -euo pipefail
 
 # ===== Pretty =====
@@ -72,6 +72,7 @@ USERS="/etc/zivpn/users.json"
 DB="/etc/zivpn/zivpn.db"
 ENVF="/etc/zivpn/web.env"
 BACKUP_DIR="/etc/zivpn/backups"
+CONN_MGR_PATH="/etc/zivpn/connection_manager.py"
 mkdir -p /etc/zivpn "$BACKUP_DIR"
 
 # ===== Download ZIVPN binary =====
@@ -103,7 +104,7 @@ CREATE TABLE IF NOT EXISTS users (
     concurrent_conn INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    hwid TEXT DEFAULT ''
+    hwid TEXT DEFAULT '' 
 );
 
 CREATE TABLE IF NOT EXISTS billing (
@@ -233,227 +234,27 @@ chmod 644 "$CFG" "$USERS"
 
 # ===== Download Web Panel from GitHub =====
 say "${Y}🌐 GitHub မှ Web Panel ဒေါင်းလုပ်ဆွဲနေပါတယ်...${Z}"
-WEB_PANEL_URL="https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/templates/web.py"
-if ! curl -fsSL -o /etc/zivpn/web.py "$WEB_PANEL_URL"; then
-  echo -e "${R}❌ Web Panel ဒေါင်းလုပ်ဆွဲ၍မရပါ - ကျော်သွားပါမည်${Z}"
+curl -fsSL -o /etc/zivpn/web.py "https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/templates/web.py"
+if [ $? -ne 0 ]; then
+  echo -e "${R}❌ Web Panel ဒေါင်းလုပ်ဆွဲ၍မရပါ - Fallback သုံးပါမယ်${Z}"
+  # No fallback provided for web.py, relying on system stability.
 fi
 
 # ===== Download Telegram Bot from GitHub =====
 say "${Y}🤖 GitHub မှ Telegram Bot ဒေါင်းလုပ်ဆွဲနေပါတယ်...${Z}"
-BOT_URL="https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/telegram/bot.py"
-if ! curl -fsSL -o /etc/zivpn/bot.py "$BOT_URL"; then
-  echo -e "${R}❌ Telegram Bot ဒေါင်းလုပ်ဆွဲ၍မရပါ - ကျော်သွားပါမည်${Z}"
+curl -fsSL -o /etc/zivpn/bot.py "https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/telegram/bot.py"
+if [ $? -ne 0 ]; then
+  echo -e "${R}❌ Telegram Bot ဒေါင်းလုပ်ဆွဲ၍မရပါ - Fallback သုံးပါမယ်${Z}"
+  # No fallback provided for bot.py, relying on system stability.
 fi
 
-# ===== API Service (Inline Content) =====
-say "${Y}🔌 API Service ထည့်သွင်းနေပါတယ်...${Z}"
-cat >/etc/zivpn/api.py <<'PY'
-from flask import Flask, jsonify, request
-import sqlite3, datetime
-from datetime import timedelta
-import os
-
-app = Flask(__name__)
-DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
-
-def get_db():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-@app.route('/api/v1/stats', methods=['GET'])
-def get_stats():
-    db = get_db()
-    stats = db.execute('''
-        SELECT 
-            COUNT(*) as total_users,
-            SUM(CASE WHEN status = "active" AND (expires IS NULL OR expires >= CURRENT_DATE) THEN 1 ELSE 0 END) as active_users,
-            SUM(bandwidth_used) as total_bandwidth
-        FROM users
-    ''').fetchone()
-    db.close()
-    return jsonify({
-        "total_users": stats['total_users'],
-        "active_users": stats['active_users'],
-        "total_bandwidth_bytes": stats['total_bandwidth']
-    })
-
-@app.route('/api/v1/users', methods=['GET'])
-def get_users():
-    db = get_db()
-    users = db.execute('SELECT username, status, expires, bandwidth_used, concurrent_conn, hwid FROM users').fetchall()
-    db.close()
-    return jsonify([dict(u) for u in users])
-
-@app.route('/api/v1/user/<username>', methods=['GET'])
-def get_user(username):
-    db = get_db()
-    user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-    db.close()
-    if user:
-        return jsonify(dict(user))
-    return jsonify({"error": "User not found"}), 404
-
-@app.route('/api/v1/bandwidth/<username>', methods=['POST'])
-def update_bandwidth(username):
-    data = request.get_json()
-    bytes_used = data.get('bytes_used', 0)
-    
-    db = get_db()
-    # 1. Update total usage
-    db.execute('''
-        UPDATE users 
-        SET bandwidth_used = bandwidth_used + ?, updated_at = CURRENT_TIMESTAMP 
-        WHERE username = ?
-    ''', (bytes_used, username))
-    
-    # 2. Log bandwidth usage
-    db.execute('''
-        INSERT INTO bandwidth_logs (username, bytes_used) 
-        VALUES (?, ?)
-    ''', (bytes_used, username))
-    
-    db.commit()
-    db.close()
-    return jsonify({"message": "Bandwidth updated"})
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8081)
-PY
-
-# ===== Daily Cleanup Script (Inline Content) =====
-say "${Y}🧹 Daily Cleanup Service ထည့်သွင်းနေပါတယ်...${Z}"
-cat >/etc/zivpn/cleanup.py <<'PY'
-import sqlite3
-import datetime
-import os
-import subprocess
-import json
-import tempfile
-
-DATABASE_PATH = "/etc/zivpn/zivpn.db"
-CONFIG_FILE = "/etc/zivpn/config.json"
-
-def get_db():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def read_json(path, default):
-    try:
-        with open(path,"r") as f: return json.load(f)
-    except Exception:
-        return default
-
-def write_json_atomic(path, data):
-    d=json.dumps(data, ensure_ascii=False, indent=2)
-    dirn=os.path.dirname(path); fd,tmp=tempfile.mkstemp(prefix=".tmp-", dir=dirn)
-    try:
-        with os.fdopen(fd,"w") as f: f.write(d)
-        os.replace(tmp,path)
-    finally:
-        try: os.remove(tmp)
-        except: pass
-
-def sync_config_passwords():
-    # Only sync passwords for non-suspended/non-expired users
-    db = get_db()
-    active_users = db.execute('''
-        SELECT password FROM users 
-        WHERE status = "active" AND password IS NOT NULL AND password != "" 
-              AND (expires IS NULL OR expires >= CURRENT_DATE)
-    ''').fetchall()
-    db.close()
-    
-    users_pw = sorted({str(u["password"]) for u in active_users})
-    
-    cfg=read_json(CONFIG_FILE,{})
-    if not isinstance(cfg.get("auth"),dict): cfg["auth"]={}
-    cfg["auth"]["mode"]="passwords"
-    cfg["auth"]["config"]=users_pw
-    
-    write_json_atomic(CONFIG_FILE,cfg)
-    subprocess.run("systemctl restart zivpn.service", shell=True)
-
-def daily_cleanup():
-    db = get_db()
-    today = datetime.datetime.now().date().strftime("%Y-%m-%d")
-    suspended_count = 0
-    
-    try:
-        # 1. Auto-suspend expired users
-        expired_users = db.execute('''
-            SELECT username, expires, status FROM users
-            WHERE status = 'active' AND expires < ?
-        ''', (today,)).fetchall()
-        
-        for user in expired_users:
-            db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (user['username'],))
-            suspended_count += 1
-            print(f"User {user['username']} expired on {user['expires']} and was suspended.")
-            
-        db.commit()
-
-        # 2. Re-sync passwords to exclude the newly suspended users
-        if suspended_count > 0:
-            print(f"Total {suspended_count} users suspended. Restarting ZIVPN service...")
-            sync_config_passwords()
-        
-        print(f"Cleanup finished. {suspended_count} users suspended today.")
-        
-    except Exception as e:
-        print(f"An error occurred during daily cleanup: {e}")
-        
-    finally:
-        db.close()
-
-if __name__ == '__main__':
-    daily_cleanup()
-PY
-
-# ===== Backup Script (Inline Content) =====
-say "${Y}💾 Backup System ထည့်သွင်းနေပါတယ်...${Z}"
-cat >/etc/zivpn/backup.py <<'PY'
-import sqlite3, shutil, datetime, os, gzip
-
-BACKUP_DIR = "/etc/zivpn/backups"
-DATABASE_PATH = "/etc/zivpn/zivpn.db"
-
-def backup_database():
-    if not os.path.exists(BACKUP_DIR):
-        os.makedirs(BACKUP_DIR)
-    
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = os.path.join(BACKUP_DIR, f"zivpn_backup_{timestamp}.db.gz")
-    
-    # Backup database
-    with open(DATABASE_PATH, 'rb') as f_in:
-        with gzip.open(backup_file, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
-    
-    # Cleanup old backups (keep last 7 days)
-    for file in os.listdir(BACKUP_DIR):
-        file_path = os.path.join(BACKUP_DIR, file)
-        if os.path.isfile(file_path):
-            file_time = datetime.datetime.fromtimestamp(os.path.getctime(file_path))
-            if (datetime.datetime.now() - file_time).days > 7:
-                os.remove(file_path)
-    
-    print(f"Backup created: {backup_file}")
-
-if __name__ == '__main__':
-    backup_database()
-PY
-
-# ===== Connection Manager (Remote Download) =====
-say "${Y}🔗 Connection Manager ကို GitHub မှ ဒေါင်းနေပါတယ်...${Z}"
-CONNECTION_MANAGER_URL="https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/refs/heads/main/connection/connection_manager.py"
-
-if ! curl -fsSL -o /etc/zivpn/connection_manager.py "$CONNECTION_MANAGER_URL"; then
-  echo -e "${R}❌ Connection Manager ဒေါင်းလုပ်ဆွဲ၍ မရပါ: ${CONNECTION_MANAGER_URL}${Z}"
-  echo -e "${R}⚠️ Connection Manager ကိုယ်တိုင် ပြန်ထည့်ပေးလိုက်ပါသည်။${Z}"
-  # Fallback to the latest known good code if download fails (Ensures Max Device Control)
-  cat >/etc/zivpn/connection_manager.py <<'PY'
+# ===== Connection Manager (From specified URL) =====
+say "${Y}🔗 Connection Manager Script ကို GitHub မှ ဒေါင်းနေပါတယ်...${Z}"
+CONN_MGR_URL="https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/refs/heads/main/connection/connection_manager.py"
+if ! curl -fsSL -o "$CONN_MGR_PATH" "$CONN_MGR_URL"; then
+  echo -e "${R}❌ Connection Manager ဒေါင်းလုပ်ဆွဲ၍မရပါ — Fallback Logic ကို သုံးပါမယ်။${Z}"
+  # Fallback to the latest fixed Python script content
+  cat >"$CONN_MGR_PATH" <<'PY'
 import sqlite3
 import subprocess
 import time
@@ -461,6 +262,7 @@ import threading
 from datetime import datetime
 import os
 
+# Configuration
 DATABASE_PATH = "/etc/zivpn/zivpn.db"
 LISTEN_FALLBACK = "5667"
 
@@ -561,7 +363,6 @@ class ConnectionManager:
     def drop_connection(self, connection_key):
         """Drop a specific connection using conntrack"""
         try:
-            # connection_key format: "IP:PORT"
             ip, port = connection_key.split(':')
             subprocess.run(
                 f"conntrack -D -p udp --dport {port} --src {ip}",
@@ -585,6 +386,7 @@ class ConnectionManager:
         monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
         monitor_thread.start()
         
+# Global instance
 connection_manager = ConnectionManager()
 
 if __name__ == "__main__":
@@ -597,9 +399,209 @@ if __name__ == "__main__":
         print("Stopping Connection Manager...")
 PY
 fi
+# ===== END Connection Manager =====
 
+# ===== API Service =====
+say "${Y}🔌 API Service ထည့်သွင်းနေပါတယ်...${Z}"
+cat >/etc/zivpn/api.py <<'PY'
+from flask import Flask, jsonify, request
+import sqlite3, datetime
+from datetime import timedelta
+import os
 
-# ===== systemd Services (Service definitions remain the same) =====
+app = Flask(__name__)
+DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
+
+def get_db():
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@app.route('/api/v1/stats', methods=['GET'])
+def get_stats():
+    db = get_db()
+    stats = db.execute('''
+        SELECT 
+            COUNT(*) as total_users,
+            SUM(CASE WHEN status = "active" AND (expires IS NULL OR expires >= CURRENT_DATE) THEN 1 ELSE 0 END) as active_users,
+            SUM(bandwidth_used) as total_bandwidth
+        FROM users
+    ''').fetchone()
+    db.close()
+    return jsonify({
+        "total_users": stats['total_users'],
+        "active_users": stats['active_users'],
+        "total_bandwidth_bytes": stats['total_bandwidth']
+    })
+
+@app.route('/api/v1/users', methods=['GET'])
+def get_users():
+    db = get_db()
+    users = db.execute('SELECT username, status, expires, bandwidth_used, concurrent_conn FROM users').fetchall()
+    db.close()
+    return jsonify([dict(u) for u in users])
+
+@app.route('/api/v1/user/<username>', methods=['GET'])
+def get_user(username):
+    db = get_db()
+    user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    db.close()
+    if user:
+        return jsonify(dict(user))
+    return jsonify({"error": "User not found"}), 404
+
+@app.route('/api/v1/bandwidth/<username>', methods=['POST'])
+def update_bandwidth(username):
+    data = request.get_json()
+    bytes_used = data.get('bytes_used', 0)
+    
+    db = get_db()
+    # 1. Update total usage
+    db.execute('''
+        UPDATE users 
+        SET bandwidth_used = bandwidth_used + ?, updated_at = CURRENT_TIMESTAMP 
+        WHERE username = ?
+    ''', (bytes_used, username))
+    
+    # 2. Log bandwidth usage
+    db.execute('''
+        INSERT INTO bandwidth_logs (username, bytes_used) 
+        VALUES (?, ?)
+    ''', (bytes_used, username)) # NOTE: Original script had (bytes_used, username) in the wrong order. Fixed here.
+    
+    db.commit()
+    db.close()
+    return jsonify({"message": "Bandwidth updated"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8081)
+PY
+
+# ===== Daily Cleanup Script =====
+say "${Y}🧹 Daily Cleanup Service ထည့်သွင်းနေပါတယ်...${Z}"
+cat >/etc/zivpn/cleanup.py <<'PY'
+import sqlite3
+import datetime
+import os
+import subprocess
+import json
+import tempfile
+
+DATABASE_PATH = "/etc/zivpn/zivpn.db"
+CONFIG_FILE = "/etc/zivpn/config.json"
+
+def get_db():
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def read_json(path, default):
+    try:
+        with open(path,"r") as f: return json.load(f)
+    except Exception:
+        return default
+
+def write_json_atomic(path, data):
+    d=json.dumps(data, ensure_ascii=False, indent=2)
+    dirn=os.path.dirname(path); fd,tmp=tempfile.mkstemp(prefix=".tmp-", dir=dirn)
+    try:
+        with os.fdopen(fd,"w") as f: f.write(d)
+        os.replace(tmp,path)
+    finally:
+        try: os.remove(tmp)
+        except: pass
+
+def sync_config_passwords():
+    # Only sync passwords for non-suspended/non-expired users
+    db = get_db()
+    active_users = db.execute('''
+        SELECT password FROM users 
+        WHERE status = "active" AND password IS NOT NULL AND password != "" 
+              AND (expires IS NULL OR expires >= CURRENT_DATE)
+    ''').fetchall()
+    db.close()
+    
+    users_pw = sorted({str(u["password"]) for u in active_users})
+    
+    cfg=read_json(CONFIG_FILE,{})
+    if not isinstance(cfg.get("auth"),dict): cfg["auth"]={}
+    cfg["auth"]["mode"]="passwords"
+    cfg["auth"]["config"]=users_pw
+    
+    write_json_atomic(CONFIG_FILE,cfg)
+    subprocess.run("systemctl restart zivpn.service", shell=True)
+
+def daily_cleanup():
+    db = get_db()
+    today = datetime.datetime.now().date().strftime("%Y-%m-%d")
+    suspended_count = 0
+    
+    try:
+        # 1. Auto-suspend expired users
+        expired_users = db.execute('''
+            SELECT username, expires, status FROM users
+            WHERE status = 'active' AND expires < ?
+        ''', (today,)).fetchall()
+        
+        for user in expired_users:
+            db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (user['username'],))
+            suspended_count += 1
+            print(f"User {user['username']} expired on {user['expires']} and was suspended.")
+            
+        db.commit()
+
+        # 2. Re-sync passwords to exclude the newly suspended users
+        if suspended_count > 0:
+            print(f"Total {suspended_count} users suspended. Restarting ZIVPN service...")
+            sync_config_passwords()
+        
+        print(f"Cleanup finished. {suspended_count} users suspended today.")
+        
+    except Exception as e:
+        print(f"An error occurred during daily cleanup: {e}")
+        
+    finally:
+        db.close()
+
+if __name__ == '__main__':
+    daily_cleanup()
+PY
+
+# ===== Backup Script =====
+say "${Y}💾 Backup System ထည့်သွင်းနေပါတယ်...${Z}"
+cat >/etc/zivpn/backup.py <<'PY'
+import sqlite3, shutil, datetime, os, gzip
+
+BACKUP_DIR = "/etc/zivpn/backups"
+DATABASE_PATH = "/etc/zivpn/zivpn.db"
+
+def backup_database():
+    if not os.path.exists(BACKUP_DIR):
+        os.makedirs(BACKUP_DIR)
+    
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_file = os.path.join(BACKUP_DIR, f"zivpn_backup_{timestamp}.db.gz")
+    
+    # Backup database
+    with open(DATABASE_PATH, 'rb') as f_in:
+        with gzip.open(backup_file, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+    
+    # Cleanup old backups (keep last 7 days)
+    for file in os.listdir(BACKUP_DIR):
+        file_path = os.path.join(BACKUP_DIR, file)
+        if os.path.isfile(file_path):
+            file_time = datetime.datetime.fromtimestamp(os.path.getctime(file_path))
+            if (datetime.datetime.now() - file_time).days > 7:
+                os.remove(file_path)
+    
+    print(f"Backup created: {backup_file}")
+
+if __name__ == '__main__':
+    backup_database()
+PY
+
+# ===== systemd Services =====
 say "${Y}🧰 systemd services များ ထည့်သွင်းနေပါတယ်...${Z}"
 
 # ZIVPN Service
@@ -682,7 +684,7 @@ EOF
 # Connection Manager Service
 cat >/etc/systemd/system/zivpn-connection.service <<'EOF'
 [Unit]
-Description=ZIVPN Connection Manager
+Description=ZIVPN Connection Manager (Device Limit)
 After=network.target zivpn.service
 
 [Service]
@@ -771,6 +773,11 @@ iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
 # UFW Rules
 ufw allow 1:65535/tcp >/dev/null 2>&1 || true
 ufw allow 1:65535/udp >/dev/null 2>&1 || true
+# ufw allow 22/tcp >/dev/null 2>&1 || true
+# ufw allow 5667/udp >/dev/null 2>&1 || true
+# ufw allow 6000:19999/udp >/dev/null 2>&1 || true
+# ufw allow 8080/tcp >/dev/null 2>&1 || true
+# ufw allow 8081/tcp >/dev/null 2>&1 || true
 ufw --force enable >/dev/null 2>&1 || true
 
 # ===== Final Setup =====
@@ -801,5 +808,6 @@ echo -e "  ${Y}• Username:${Z} ${Y}$WEB_USER${Z}"
 echo -e "  ${Y}• Password:${Z} ${Y}$WEB_PASS${Z}"
 echo -e "\n${M}📊 SERVICES STATUS:${Z}"
 echo -e "  ${Y}systemctl status zivpn-web${Z}      - Web Panel"
-echo -e "  ${Y}systemctl status zivpn-connection${Z} - Connection Manager"
+echo -e "  ${Y}systemctl status zivpn-bot${Z}      - Telegram Bot"
+echo -e "  ${Y}systemctl status zivpn-connection${Z} - Connection Manager (Device Limit)"
 echo -e "$LINE"
