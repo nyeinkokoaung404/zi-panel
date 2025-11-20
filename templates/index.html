@@ -16,6 +16,7 @@
     --success: #06d6a0; --delete-btn: #ef4444; --logout-btn: #f97316;
     --shadow: 0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2);
     --radius: 16px; --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --setting-active-tab: rgba(59, 130, 246, 0.1);
 }
 [data-theme='dark']{
     --bg: var(--bg-dark); --fg: var(--fg-dark); --card: var(--card-dark);
@@ -200,12 +201,17 @@ html,body{
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Stats Grid */
+/* Stats Grid (FORCED 2x2 layout) */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: 1fr; /* Default 1 column on mobile */
     gap: 15px;
     margin: 20px 0;
+}
+@media (min-width: 640px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr; /* Force 2 columns on wider screens */
+    }
 }
 
 .stat-card {
@@ -492,6 +498,49 @@ tr:hover {
     padding: 5px;
 }
 
+/* Settings Tabs */
+.settings-tabs {
+    display: flex;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--bd);
+}
+
+.settings-tab-btn {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--fg);
+    border-bottom: 3px solid transparent;
+    transition: border-bottom 0.3s ease, color 0.3s ease;
+}
+
+.settings-tab-btn.active {
+    color: var(--primary-btn);
+    border-bottom-color: var(--primary-btn);
+}
+
+.setting-group-content {
+    display: none;
+    padding-top: 15px;
+}
+
+.setting-group-content.active {
+    display: block;
+}
+
+/* Specific button placement in settings */
+.setting-footer {
+    padding-top: 20px;
+    border-top: 1px solid var(--bd);
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+
 /* Login Styles */
 .login-container {
     min-height: 100vh;
@@ -679,7 +728,7 @@ tr:hover {
 
     <!-- Home Section -->
     <div id="home" class="content-section active">
-        <!-- Stats Overview -->
+        <!-- Stats Overview (FORCED 2x2 Layout via CSS) -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon" style="color:var(--primary-btn);">
@@ -977,8 +1026,19 @@ tr:hover {
             <button class="close-modal" onclick="closeSettings()">&times;</button>
         </div>
         
-        <div class="setting-group">
-            <label class="setting-label"><i class="fas fa-palette"></i> Theme</label>
+        <!-- Settings Tabs -->
+        <div class="settings-tabs">
+            <div class="settings-tab-btn active" data-tab="theme" onclick="showSettingTab('theme')">
+                <i class="fas fa-palette"></i> Theme
+            </div>
+            <div class="settings-tab-btn" data-tab="language" onclick="showSettingTab('language')">
+                <i class="fas fa-language"></i> Language
+            </div>
+        </div>
+        
+        <!-- Theme Content -->
+        <div id="themeContent" class="setting-group-content active">
+            <label class="setting-label">Choose Theme</label>
             <div class="theme-options">
                 <div class="theme-option {% if theme == 'dark' %}active{% endif %}" data-theme="dark" onclick="changeTheme('dark')">
                     <i class="fas fa-moon"></i> Dark
@@ -989,25 +1049,24 @@ tr:hover {
             </div>
         </div>
         
-        <div class="setting-group">
-            <label class="setting-label"><i class="fas fa-language"></i> Language</label>
+        <!-- Language Content -->
+        <div id="languageContent" class="setting-group-content">
+            <label class="setting-label">Choose Language</label>
             <div class="lang-options">
                 <div class="lang-option {% if lang == 'my' %}active{% endif %}" data-lang="my" onclick="changeLanguage('my')">
-                    <i class="fas fa-language"></i> မြန်မာ
+                    <i class="fas fa-language"></i> {{t['Burmese'] or 'မြန်မာ'}}
                 </div>
                 <div class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en" onclick="changeLanguage('en')">
-                    <i class="fas fa-language"></i> English
+                    <i class="fas fa-language"></i> {{t['English'] or 'English'}}
                 </div>
             </div>
         </div>
-        
-        <div class="setting-group">
-            <a class="btn btn-primary btn-block" href="/api/export/users">
-                <i class="fas fa-download"></i> Export Users CSV
-            </a>
-        </div>
 
-        <div class="setting-group">
+        <!-- Logout and Export Buttons -->
+        <div class="setting-footer">
+            <a class="btn btn-primary btn-block" href="/api/export/users" style="background-color: #1c7ed6;">
+                <i class="fas fa-file-csv"></i> {{t.export_csv}}
+            </a>
             <a class="btn btn-danger btn-block" href="/logout">
                 <i class="fas fa-sign-out-alt"></i> {{t.logout}}
             </a>
@@ -1050,12 +1109,30 @@ function showSection(sectionId) {
 
 // Settings Modal Functions
 function openSettings() {
-    // FIX: Add active class to show the modal
+    // FIX 1: Add active class to show the modal (already fixed in previous step's CSS, but JS ensures it)
     document.getElementById('settingsModal').classList.add('active');
+    // Initialize to show Theme tab first
+    showSettingTab('theme');
 }
 
 function closeSettings() {
     document.getElementById('settingsModal').classList.remove('active');
+}
+
+function showSettingTab(tabName) {
+    // Hide all tab content
+    document.querySelectorAll('.setting-group-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Deactivate all tab buttons
+    document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab content and activate button
+    document.getElementById(tabName + 'Content').classList.add('active');
+    document.querySelector(`.settings-tab-btn[data-tab="${tabName}"]`).classList.add('active');
 }
 
 // Theme Functions
@@ -1087,6 +1164,16 @@ document.addEventListener('DOMContentLoaded', () => {
             option.classList.add('active');
         }
     });
+    
+    // Set active language option (for display purposes in modal)
+    const currentLang = document.documentElement.lang;
+    document.querySelectorAll('.lang-option').forEach(option => {
+        option.classList.remove('active');
+        if (option.getAttribute('data-lang') === currentLang) {
+            option.classList.add('active');
+        }
+    });
+
 
     // Handle initial active section (if not home)
     const activeSection = document.querySelector('.content-section.active');
@@ -1139,7 +1226,7 @@ function openEditModal(username, password, hwid) {
     document.getElementById('editPassword').value = password;
     // Set HWID field, replacing 'None', 'null', or '-' with empty string for editing
     document.getElementById('editHWID').value = (hwid === 'None' || hwid === 'null' || hwid === '-') ? '' : hwid;
-    // FIX: Add active class to show the modal
+    // FIX 2: Add active class to show the modal
     document.getElementById('editUserModal').classList.add('active');
 }
 
