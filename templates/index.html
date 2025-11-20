@@ -18,14 +18,20 @@
     --radius: 16px; --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --setting-active-tab: rgba(59, 130, 246, 0.1);
     --toggle-size: 20px;
+    
+    /* NEW: Custom Detail Text Colors */
+    --detail-label-dark: rgba(255, 255, 255, 0.7); /* Lighter gray for dark mode */
+    --detail-label-light: var(--fg); /* Dark text for light mode */
 }
 [data-theme='dark']{
     --bg: var(--bg-dark); --fg: var(--fg-dark); --card: var(--card-dark);
     --bd: var(--bd-dark); --primary-btn: var(--primary-dark); --input-text: var(--fg-dark);
+    --detail-label-color: var(--detail-label-dark);
 }
 [data-theme='light']{
     --bg: var(--bg-light); --fg: var(--fg-light); --card: var(--card-light);
     --bd: var(--bd-light); --primary-btn: var(--primary-light); --input-text: var(--fg-light);
+    --detail-label-color: var(--detail-label-light);
 }
 * {
     box-sizing: border-box;
@@ -527,17 +533,16 @@ tr:hover {
     gap: 10px;
 }
 
-/* User Detail Card (ALWAYS VISIBLE IN TABLE) - Styled like the image */
+/* User Detail Card (ALWAYS VISIBLE IN TABLE) */
 .user-detail-card {
-    background: var(--card); /* Use card background for better contrast */
+    background: var(--card); 
     border-radius: var(--radius);
     padding: 15px;
     margin-top: 10px;
     font-size: 0.9em;
-    /* Removed border */
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Two columns for label/value */
-    gap: 5px 15px; /* Vertical and horizontal gap */
+    grid-template-columns: 1fr 1fr; 
+    gap: 5px 15px; 
     width: 100%;
 }
 
@@ -545,9 +550,10 @@ tr:hover {
     display: contents; 
 }
 
+/* --- FIX: Detail Text Contrast --- */
 .user-detail-label {
     grid-column: 1 / 2;
-    color: var(--bd);
+    color: var(--detail-label-color); /* Use theme-specific label color */
     font-weight: 400;
     padding: 5px 0;
     border-bottom: 1px dotted var(--bd);
@@ -559,7 +565,10 @@ tr:hover {
     word-break: break-all;
     padding: 5px 0;
     border-bottom: 1px dotted var(--bd);
+    color: var(--fg); /* Ensure value text uses standard foreground color */
 }
+/* --- END FIX --- */
+
 .user-detail-card > div:nth-last-child(-n+2) > span {
     border-bottom: none;
 }
@@ -932,7 +941,7 @@ input:checked + .slider .toggle-text.on {
                         </div>
                     </td>
                 </tr>
-                <!-- Detail Row (Desktop Only) -->
+                <!-- Detail Row (ALWAYS VISIBLE, spans all columns) -->
                 <tr class="detail-row" id="detail-row-{{loop.index0}}" style="display:table-row;">
                     <td colspan="5" style="padding-top: 5px; padding-bottom: 20px; border-bottom: 2px solid var(--bd);">
                         <div class="user-detail-card">
@@ -955,6 +964,10 @@ input:checked + .slider .toggle-text.on {
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-calendar-alt"></i> {{t.expire_date}}</span>
                                 <span class="user-detail-value">{{u.expires or 'N/A'}}</span>
+                            </div>
+                            <div class="user-detail-row">
+                                <span class="user-detail-label"><i class="fas fa-link"></i> {{t.max_conn}}</span>
+                                <span class="user-detail-value">{{u.concurrent_conn}}</span>
                             </div>
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-tachometer-alt"></i> {{t.status}}</span>
@@ -988,6 +1001,7 @@ input:checked + .slider .toggle-text.on {
                 <!-- Row 3: Details -->
                 <div class="user-card-details">
                      <div class="user-detail-card" style="background: var(--bg); border: none; padding: 0;">
+                        <!-- Adjusted Detail Display for Mobile Card -->
                         <div class="user-detail-row">
                             <span class="user-detail-label">{{t.vps_ip}}</span>
                             <span class="user-detail-value">{{u.server_ip}}</span>
@@ -1008,7 +1022,6 @@ input:checked + .slider .toggle-text.on {
                             <span class="user-detail-label">{{t.expire_date}}</span>
                             <span class="user-detail-value">{{u.expires or 'N/A'}}</span>
                         </div>
-                        <!-- Removed duplicate status row -->
                         <div class="user-detail-row" style="border-bottom: none;">
                             <span class="user-detail-label">{{t.max_conn}}</span>
                             <span class="user-detail-value">{{u.concurrent_conn}}</span>
