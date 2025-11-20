@@ -12,7 +12,6 @@ LISTEN_FALLBACK = "5667"
 class ConnectionManager:
     def __init__(self):
         self.lock = threading.Lock()
-        # Note: We do not use self.connection_tracker as it's volatile/unreliable across loops.
 
     def get_db(self):
         conn = sqlite3.connect(DATABASE_PATH)
@@ -22,18 +21,15 @@ class ConnectionManager:
     def get_active_connections(self):
         """
         conntrack ကိုသုံးပြီး 'src=IP' နှင့် 'dport=PORT' ပါသော UDP connections များကို ရယူသည်။
-        ဥပမာ- {'192.168.1.10:6001': ['conntrack line 1'], '192.168.1.11:6001': ['conntrack line 2']}
         """
         try:
             # conntrack -L -p udp: UDP connections list ကို ပြသည်။
             # grep -E 'dport=(...)' : ZIVPN ports များ (5667 or 6000-19999) ကို စစ်သည်။
-            # awk '{print $7,$8}' : src=IP နှင့် dport=PORT ကို ထုတ်ယူသည်။
             result = subprocess.run(
                 "conntrack -L -p udp 2>/dev/null | grep -E 'dport=(5667|[6-9][0-9]{3}|[1-9][0-9]{4})'",
                 shell=True, capture_output=True, text=True
             )
             
-            # Group connections by IP:PORT for easier lookup
             connections = {}
             for line in result.stdout.split('\n'):
                 if 'src=' in line and 'dport=' in line:
@@ -51,7 +47,6 @@ class ConnectionManager:
                         if src_ip and dport:
                             key = f"{src_ip}:{dport}"
                             if key not in connections:
-                                # We store the full line for potential future use (though only key is used here)
                                 connections[key] = line 
                     except:
                         continue
@@ -105,7 +100,6 @@ class ConnectionManager:
                             print(f"  Dropping excess device IP: {ip} for user {username}")
                             for conn_key in conn_keys:
                                 self.drop_connection(conn_key)
-                        # else: This IP is allowed to stay.
 
         except Exception as e:
             print(f"An error occurred during connection limit enforcement: {e}")
@@ -123,7 +117,6 @@ class ConnectionManager:
                 f"conntrack -D -p udp --dport {port} --src {ip}",
                 shell=True, capture_output=True, text=True
             )
-            # ဖြတ်ချရာတွင် error မရှိစေရန် -D ကို အောင်မြင်စွာ ပြီးမြောက်အောင် ကြိုးစားသည်။
             print(f"Dropped connection: {connection_key}")
         except Exception as e:
             print(f"Error dropping connection {connection_key}: {e}")
@@ -146,7 +139,7 @@ class ConnectionManager:
 connection_manager = ConnectionManager()
 
 if __name__ == "__main__":
-    print("Starting ZIVPN Connection Manager (Enforcing Device Limits)...")
+    print("Starting ZIVPN Connection Manager...")
     connection_manager.start_monitoring()
     try:
         while True:
