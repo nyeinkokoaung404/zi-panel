@@ -381,6 +381,9 @@ th {
     color: white;
     font-weight: 600;
     text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 50;
 }
 
 tr:hover {
@@ -522,12 +525,12 @@ tr:hover {
     gap: 10px;
 }
 
-/* Edit Modal Card Style (based on image) */
+/* User Detail Card (for Table Toggle) */
 .user-detail-card {
     background: var(--bg);
     border-radius: var(--radius);
     padding: 15px;
-    margin-bottom: 20px;
+    margin-top: 10px;
     font-size: 0.9em;
     border: 1px solid var(--bd);
 }
@@ -735,13 +738,12 @@ tr:hover {
         </button>
     </header>
     
-    <!-- Global Success/Error messages (Not used in new design, but kept for Flask routing) -->
-    <!-- {% if msg %}<div class="alert alert-success">{{msg}}</div>{% endif %}
-    {% if err %}<div class="alert alert-error">{{err}}</div>{% endif %} -->
+    {% if msg %}<div class="alert alert-success">{{msg}}</div>{% endif %}
+    {% if err %}<div class="alert alert-error">{{err}}</div>{% endif %}
 
     <!-- Home Section -->
     <div id="home" class="content-section active">
-        <!-- Dashboard Stats (Total Users & Online Users - 2x2 Top Row) -->
+        <!-- Dashboard Stats (Total Users & Online Users - 1x2 Top Row) -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon" style="color:var(--primary-btn);">
@@ -833,34 +835,69 @@ tr:hover {
             <table id="userTable">
                 <thead>
                     <tr>
-                        <th>{{t.user}}</th>
-                        <th>{{t.password}}</th>
-                        <th>{{t.hwid}}</th> <!-- HWID COLUMN -->
-                        <th>{{t.expires}}</th>
-                        <th>{{t.status}}</th>
-                        <th>{{t.actions}}</th>
+                        <th style="width: 20%;">{{t.user}}</th>
+                        <th style="width: 15%;">{{t.port}}</th>
+                        <th style="width: 15%;">{{t.expires}}</th>
+                        <th style="width: 15%;">{{t.status}}</th>
+                        <th style="width: 15%;">{{t.actions}}</th>
+                        <th style="width: 20%;"></th> <!-- For Toggle Button -->
                     </tr>
                 </thead>
                 <tbody>
                 {% for u in users %}
-                <!-- Added data attributes for JS search -->
-                <tr data-hwid="{{u.hwid}}" data-user="{{u.user}}"> 
+                <tr class="main-row" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}"> 
                     <td><strong>{{u.user}}</strong></td>
-                    <td>{{u.password}}</td>
-                    <td><small>{{u.hwid or '-'}}</small></td> <!-- HWID CELL -->
+                    <td>{{u.port or 'N/A'}}</td>
                     <td>{{u.expires or '-'}}</td>
                     <td>
                         <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
                     </td>
                     <td>
                         <div class="action-btns">
-                            <button class="action-btn btn-danger" onclick="deleteUser('{{u.user}}')" title="Delete">
+                            <!-- Edit/Update button: opens modal for Password/HWID change -->
+                            <button class="action-btn btn-primary" onclick="openEditModal('{{u.user}}', '{{u.password}}', '{{u.hwid}}')" title="Edit Credentials">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <button class="action-btn btn-danger" onclick="deleteUser('{{u.user}}')" title="Delete User">
                                 <i class="fas fa-trash"></i>
                             </button>
-                            <!-- Updated Edit button to open custom modal -->
-                            <button class="action-btn btn-primary" onclick="openEditModal('{{u.user}}', '{{u.password}}', '{{u.hwid}}', '{{u.expires}}', '{{u.days_left}}', '{{u.port}}', '{{u.status}}', '{{u.server_ip}}')" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
+                        </div>
+                    </td>
+                    <td>
+                        <!-- Toggle Button to show details -->
+                        <button class="action-btn btn-success" onclick="toggleDetailRow(this, 'detail-row-{{loop.index0}}')" title="{{t.show_details}}">
+                            <i class="fas fa-info"></i> {{t.show_details}}
+                        </button>
+                    </td>
+                </tr>
+                <!-- Detail Row (Initially hidden) -->
+                <tr class="detail-row" id="detail-row-{{loop.index0}}" style="display:none;">
+                    <td colspan="6">
+                        <div class="user-detail-card">
+                            <div class="user-detail-row">
+                                <span class="user-detail-label">{{t.vps_ip}}</span>
+                                <span class="user-detail-value">{{u.server_ip}}</span>
+                            </div>
+                            <div class="user-detail-row">
+                                <span class="user-detail-label">{{t.hwid}}</span>
+                                <span class="user-detail-value">{{u.hwid or '-'}}</span>
+                            </div>
+                            <div class="user-detail-row">
+                                <span class="user-detail-label">{{t.day_left}}</span>
+                                <span class="user-detail-value" style="color: {% if 'Overdue' in u.days_left %}var(--delete-btn){% else %}var(--ok){% endif %};">{{u.days_left}}</span>
+                            </div>
+                            <div class="user-detail-row">
+                                <span class="user-detail-label">{{t.expire_date}}</span>
+                                <span class="user-detail-value">{{u.expires or 'N/A'}}</span>
+                            </div>
+                            <div class="user-detail-row">
+                                <span class="user-detail-label">{{t.bandwidth}} (Used/Limit)</span>
+                                <span class="user-detail-value">{{u.bandwidth_used}} / {{u.bandwidth_limit}} GB</span>
+                            </div>
+                            <div class="user-detail-row" style="border-bottom: none;">
+                                <span class="user-detail-label">{{t.max_conn}}</span>
+                                <span class="user-detail-value">{{u.concurrent_conn}}</span>
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -872,23 +909,7 @@ tr:hover {
 
     <!-- Add User Section -->
     <div id="adduser" class="content-section">
-        <!-- Display User Card if a user was just created -->
-        <div id="addUserResult" style="display:none;" class="form-card">
-            <div class="modal-header" style="border-bottom: none;">
-                <h3 style="margin: 0; display:flex; align-items:center; gap: 8px;"><span id="newUserNameDisplay"></span></h3>
-                <div id="newUserPortDisplay" class="pill pill-online"></div>
-            </div>
-            <div class="user-detail-card" id="newUserCardDetails">
-                <!-- User details will be rendered here by JS -->
-            </div>
-            <p class="alert alert-success" style="margin-top: 15px;">{{t.success_save}}</p>
-            <button class="btn btn-primary btn-block" onclick="hideAddUserResult()">
-                <i class="fas fa-plus"></i> Add Another User
-            </button>
-        </div>
-        
-        <!-- Add User Form (Hidden when result is shown) -->
-        <form method="post" action="/add" class="form-card" id="addUserForm">
+        <form method="post" action="/add" class="form-card">
             <h3 class="form-title"><i class="fas fa-user-plus"></i> {{t.add_user}}</h3>
             
             <div class="form-grid">
@@ -1025,19 +1046,14 @@ tr:hover {
     </div>
 </nav>
 
-<!-- Custom Modal for User Edit (Password/HWID) - Styled like the user's image -->
+<!-- Custom Modal for User Edit (Password/HWID) -->
 <div id="editUserModal" class="custom-modal">
     <div class="modal-content">
-        <div class="modal-header" style="border-bottom: none;">
-            <!-- Top user info (Good, PORT 6005) -->
-            <h3 style="margin: 0; display:flex; align-items:center; gap: 8px;"><span id="editUsername"></span></h3>
-            <div id="editPort" class="pill pill-online"></div>
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Edit Credentials: <span id="editUsername"></span></h3>
+            <button class="close-modal" onclick="closeEditModal()">&times;</button>
         </div>
-
-        <div class="user-detail-card" id="userInfoDisplay">
-            <!-- Details will be populated by JS -->
-        </div>
-
+        
         <form id="editForm" onsubmit="submitEdit(event)">
             <input type="hidden" id="editOriginalUser">
             
@@ -1054,7 +1070,7 @@ tr:hover {
                 <i class="fas fa-save"></i> Save Changes
             </button>
             <button type="button" class="btn btn-danger btn-block" style="margin-top: 10px;" onclick="deleteUser(document.getElementById('editOriginalUser').value)">
-                <i class="fas fa-trash"></i> Delete
+                <i class="fas fa-trash"></i> Delete User
             </button>
         </form>
     </div>
@@ -1126,6 +1142,7 @@ tr:hover {
 <script>
 // Parse Jinja translations for use in JS
 const translations = {{t|tojson}};
+// Accessing data globally for the detail row function
 const allUsers = [
     {% for u in users %}
     {
@@ -1139,63 +1156,12 @@ const allUsers = [
         server_ip: "{{u.server_ip}}",
         bw_used: "{{u.bandwidth_used}}",
         bw_limit: "{{u.bandwidth_limit}}",
-        // Pass original raw message/error state for post-redirect processing
-        msg: "{{ msg|safe }}", 
-        err: "{{ err|safe }}"
+        index: "{{loop.index0}}"
     },
     {% endfor %}
 ];
 
-// --- Utility Functions ---
-
-function getStatusClass(status) {
-    if (status.toLowerCase() === 'expired') {
-        return 'value-status-expired';
-    } else if (status.toLowerCase() === 'suspended' || status.toLowerCase() === 'offline') {
-        return 'value-status-bad';
-    } else if (status.toLowerCase() === 'online') {
-        return 'value-status-ok';
-    }
-    return 'value-status-unknown';
-}
-
-function renderUserCard(user) {
-    const statusClass = getStatusClass(user.status);
-
-    return `
-        <div class="user-detail-row">
-            <span class="user-detail-label">{{t.vps_ip}}</span>
-            <span class="user-detail-value">${user.server_ip}</span>
-        </div>
-        <div class="user-detail-row">
-            <span class="user-detail-label">{{t.username}}</span>
-            <span class="user-detail-value">${user.user}</span>
-        </div>
-        <div class="user-detail-row">
-            <span class="user-detail-label">{{t.password}}</span>
-            <span class="user-detail-value">${user.password}</span>
-        </div>
-        <div class="user-detail-row">
-            <span class="user-detail-label">{{t.hwid}}</span>
-            <span class="user-detail-value">${user.hwid || '-'}</span>
-        </div>
-        <div class="user-detail-row">
-            <span class="user-detail-label">{{t.day_left}}</span>
-            <span class="user-detail-value value-status-ok">${user.days_left}</span>
-        </div>
-        <div class="user-detail-row">
-            <span class="user-detail-label">{{t.expire_date}}</span>
-            <span class="user-detail-value">${user.expires || 'N/A'}</span>
-        </div>
-        <div class="user-detail-row" style="border-bottom: none;">
-            <span class="user-detail-label">{{t.status}}</span>
-            <span class="user-detail-value ${statusClass}">${user.status}</span>
-        </div>
-    `;
-}
-
-// --- Main Logic ---
-
+// Navigation Functions
 function showSection(sectionId) {
     // Hide all sections
     document.querySelectorAll('.content-section').forEach(section => {
@@ -1207,7 +1173,7 @@ function showSection(sectionId) {
         item.classList.remove('active');
     });
     
-    // Show selected section
+    // Show selected section and activate nav item
     document.getElementById(sectionId).classList.add('active');
     
     // Find the corresponding nav item using data-section
@@ -1217,86 +1183,32 @@ function showSection(sectionId) {
     }
 }
 
-function hideAddUserResult() {
-    document.getElementById('addUserResult').style.display = 'none';
-    document.getElementById('addUserForm').style.display = 'block';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Theme/Lang Initialization (Existing code)
-    const storedTheme = localStorage.getItem('theme') || 'dark';
-    document.body.setAttribute('data-theme', storedTheme);
-    document.querySelectorAll('.theme-option').forEach(option => {
-        option.classList.remove('active');
-        if (option.getAttribute('data-theme') === storedTheme) {
-            option.classList.add('active');
-        }
-    });
-    const currentLang = document.documentElement.lang;
-    document.querySelectorAll('.lang-option').forEach(option => {
-        option.classList.remove('active');
-        if (option.getAttribute('data-lang') === currentLang) {
-            option.classList.add('active');
-        }
-    });
-
-    // 2. Add User Card Check (NEW)
-    // Check if the server returned a success message containing user data (only happens after Add User POST)
-    const successMessageRaw = allUsers[0] ? allUsers[0].msg : null;
-    const errorMessageRaw = allUsers[0] ? allUsers[0].err : null;
-
-    if (successMessageRaw && successMessageRaw.startsWith('User saved successfully:')) {
-        const userDataJson = successMessageRaw.replace('User saved successfully:', '').trim();
-        try {
-            const newUser = JSON.parse(userDataJson);
-            
-            // Render the card
-            document.getElementById('newUserNameDisplay').textContent = newUser.user;
-            document.getElementById('newUserPortDisplay').textContent = 'PORT ' + (newUser.port || 'N/A');
-            document.getElementById('newUserCardDetails').innerHTML = renderUserCard(newUser);
-            
-            // Show result and hide form
-            document.getElementById('addUserResult').style.display = 'block';
-            document.getElementById('addUserForm').style.display = 'none';
-            
-            // Ensure we show the 'Add User' tab
-            showSection('adduser');
-
-        } catch (e) {
-            console.error("Error parsing new user data:", e);
-            // If parse fails, display generic success message on the Home tab
-            document.getElementById('addUserResult').style.display = 'none';
-            document.getElementById('addUserForm').style.display = 'block';
-            if (errorMessageRaw) alert(errorMessageRaw); // Show error if any
-        }
-    } else {
-        // If not a POST action, ensure the form is visible
-        document.getElementById('addUserResult').style.display = 'none';
-        document.getElementById('addUserForm').style.display = 'block';
-        if (errorMessageRaw) alert(errorMessageRaw); // Show error if any
-    }
-});
-
-
 // Settings Modal Functions
 function openSettings() {
+    // FIX 1: Add active class to show the modal
     document.getElementById('settingsModal').classList.add('active');
+    // Initialize to show Theme tab first
     showSettingTab('theme');
 }
 
 function closeSettings() {
     document.getElementById('settingsModal').classList.remove('active');
+    // Also close edit modal if open (safety)
     document.getElementById('editUserModal').classList.remove('active'); 
 }
 
 function showSettingTab(tabName) {
+    // Hide all tab content
     document.querySelectorAll('.setting-group-content').forEach(content => {
         content.classList.remove('active');
     });
+    
+    // Deactivate all tab buttons
     document.querySelectorAll('.settings-tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
     
+    // Show selected tab content and activate button
     const contentElement = document.getElementById(tabName + 'Content');
     const buttonElement = document.querySelector(`.settings-tab-btn[data-tab="${tabName}"]`);
     
@@ -1308,36 +1220,87 @@ function showSettingTab(tabName) {
     }
 }
 
-// Theme Functions (Existing code)
+// Theme Functions
 function changeTheme(theme) {
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
     
+    // Update active state
     document.querySelectorAll('.theme-option').forEach(option => {
         option.classList.remove('active');
     });
     event.currentTarget.classList.add('active');
 }
 
-// Language Functions (Existing code)
+// Language Functions
 function changeLanguage(lang) {
     window.location.href = '/set_lang?lang=' + lang;
 }
 
-// User Management Functions (Existing code)
+// Initialize theme/nav from localStorage
+document.addEventListener('DOMContentLoaded', () => {
+    const storedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.setAttribute('data-theme', storedTheme);
+    
+    // Set active theme option
+    document.querySelectorAll('.theme-option').forEach(option => {
+        option.classList.remove('active');
+        if (option.getAttribute('data-theme') === storedTheme) {
+            option.classList.add('active');
+        }
+    });
+    
+    // Set active language option (for display purposes in modal)
+    const currentLang = document.documentElement.lang;
+    document.querySelectorAll('.lang-option').forEach(option => {
+        option.classList.remove('active');
+        if (option.getAttribute('data-lang') === currentLang) {
+            option.classList.add('active');
+        }
+    });
+
+
+    // Handle initial active section (if not home)
+    const activeSection = document.querySelector('.content-section.active');
+    if (activeSection) {
+         const sectionId = activeSection.id;
+         const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+         if (navItem) {
+             navItem.classList.add('active');
+         }
+    }
+});
+
+// User Management Functions
 function filterUsers() {
+    // Search by User or HWID
     const search = document.getElementById('searchUser').value.toLowerCase();
     
-    document.querySelectorAll('#userTable tbody tr').forEach(row => {
+    document.querySelectorAll('#userTable tbody tr.main-row').forEach(row => {
         const user = row.getAttribute('data-user').toLowerCase();
         const hwid = row.getAttribute('data-hwid').toLowerCase();
-        
+        const detailRow = document.getElementById(`detail-row-${row.getAttribute('data-index')}`);
+
+        // Search by User OR HWID
         const shouldShow = user.includes(search) || hwid.includes(search);
         row.style.display = shouldShow ? '' : 'none';
+        
+        // Hide detail row if main row is hidden
+        if (detailRow) {
+             if (!shouldShow) {
+                detailRow.style.display = 'none';
+             }
+             // Reset toggle button state if the detail row is hidden
+             const toggleButton = row.querySelector('.action-btn.btn-success');
+             if (toggleButton) {
+                toggleButton.innerHTML = `<i class="fas fa-info"></i> ${translations.show_details}`;
+             }
+        }
     });
 }
 
 function deleteUser(username) {
+    // Uses Burmese/English confirmation text from translations object
     if (confirm(translations.delete_confirm.replace('{user}', username))) {
         const form = document.createElement('form');
         form.method = 'POST';
@@ -1354,22 +1317,28 @@ function deleteUser(username) {
     }
 }
 
+// TOGGLE DETAIL ROW FUNCTION (NEW)
+function toggleDetailRow(button, detailRowId) {
+    const detailRow = document.getElementById(detailRowId);
+    if (detailRow.style.display === 'none' || detailRow.style.display === '') {
+        detailRow.style.display = 'table-row';
+        button.innerHTML = '<i class="fas fa-minus"></i> Hide Details';
+    } else {
+        detailRow.style.display = 'none';
+        button.innerHTML = `<i class="fas fa-info"></i> ${translations.show_details}`;
+    }
+}
+
 // Edit Modal Functions (Password and HWID)
-function openEditModal(username, password, hwid, expires, days_left, port, status, server_ip) {
+function openEditModal(username, password, hwid) {
+    
     // 1. Set form data
     document.getElementById('editUsername').textContent = username;
     document.getElementById('editOriginalUser').value = username;
     document.getElementById('editPassword').value = password;
     document.getElementById('editHWID').value = (hwid === 'None' || hwid === 'null' || hwid === '-') ? '' : hwid;
-    
-    // Create temporary user object for card rendering
-    const tempUser = { user: username, password, hwid, expires, days_left, port, status, server_ip };
 
-    // 2. Render Card
-    document.getElementById('editPort').textContent = 'PORT ' + (port || 'N/A');
-    document.getElementById('userInfoDisplay').innerHTML = renderUserCard(tempUser);
-    
-    // 3. Show modal
+    // 2. Show modal
     document.getElementById('editUserModal').classList.add('active');
 }
 
@@ -1397,7 +1366,7 @@ function submitEdit(event) {
 }
 
 
-// Bulk Action Function (Existing code)
+// Bulk Action Function
 function executeBulkAction() {
     const action = document.getElementById('bulkAction').value;
     const users = document.getElementById('bulkUsers').value;
@@ -1421,7 +1390,7 @@ function executeBulkAction() {
     });
 }
 
-// Report Generation Function (Existing code)
+// Report Generation Function
 function generateReport() {
     const from = document.getElementById('fromDate').value;
     const to = document.getElementById('toDate').value;
@@ -1450,7 +1419,7 @@ function generateReport() {
         });
 }
 
-// Close modals when clicking outside (Existing code)
+// Close modals when clicking outside
 window.onclick = function(event) {
     const settingsModal = document.getElementById('settingsModal');
     const editModal = document.getElementById('editUserModal');
