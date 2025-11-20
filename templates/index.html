@@ -17,6 +17,7 @@
     --shadow: 0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2);
     --radius: 16px; --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --setting-active-tab: rgba(59, 130, 246, 0.1);
+    --toggle-size: 20px;
 }
 [data-theme='dark']{
     --bg: var(--bg-dark); --fg: var(--fg-dark); --card: var(--card-dark);
@@ -533,28 +534,39 @@ tr:hover {
     margin-top: 10px;
     font-size: 0.9em;
     border: 1px solid var(--bd);
+    
+    /* Styling for the details row itself */
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Two columns for label/value */
+    gap: 5px 15px; /* Vertical and horizontal gap */
 }
 
 .user-detail-row {
-    display: flex;
-    justify-content: space-between;
+    display: contents; /* Allows children to participate in the grid layout */
+}
+
+.user-detail-label {
+    grid-column: 1 / 2;
+    color: var(--bd);
+    font-weight: 400;
     padding: 5px 0;
     border-bottom: 1px dotted var(--bd);
 }
-.user-detail-row:last-child {
-    border-bottom: none;
-}
-.user-detail-label {
-    color: var(--bd);
-    font-weight: 400;
-}
 .user-detail-value {
+    grid-column: 2 / 3;
     font-weight: 600;
     text-align: right;
     word-break: break-all;
+    padding: 5px 0;
+    border-bottom: 1px dotted var(--bd);
 }
+/* Ensure the last elements don't have border */
+.user-detail-card > div:nth-last-child(-n+2) > span {
+    border-bottom: none;
+}
+
 .value-status-ok { color: var(--ok); }
-.value-status-expired { color: var(--expired); }
+.value-status-expired { color: var(--delete-btn); }
 .value-status-bad { color: var(--delete-btn); }
 .value-status-unknown { color: var(--unknown); }
 
@@ -616,6 +628,95 @@ tr:hover {
     accent-color: var(--primary-btn);
 }
 
+
+/* T O G G L E   S W I T C H */
+
+.toggle-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--bd);
+}
+
+.toggle-label {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bd);
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: var(--card);
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--primary-btn);
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.toggle-text {
+    position: absolute;
+    color: white;
+    font-size: 10px;
+    line-height: 34px;
+    font-weight: 700;
+}
+
+/* OFF text */
+.toggle-text.off {
+    right: 8px;
+}
+
+/* ON text */
+.toggle-text.on {
+    left: 8px;
+    opacity: 0;
+}
+
+input:checked + .slider .toggle-text.off {
+    opacity: 0;
+}
+
+input:checked + .slider .toggle-text.on {
+    opacity: 1;
+}
 
 /* Messages */
 .alert {
@@ -847,7 +948,7 @@ tr:hover {
                 {% for u in users %}
                 <tr class="main-row" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}"> 
                     <td><strong>{{u.user}}</strong></td>
-                    <td>{{u.port or 'N/A'}}</td>
+                    <td><div class="pill pill-online" style="background-color: var(--ok); width: fit-content;">PORT {{u.port or 'N/A'}}</div></td>
                     <td>{{u.expires or '-'}}</td>
                     <td>
                         <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
@@ -875,27 +976,35 @@ tr:hover {
                     <td colspan="6">
                         <div class="user-detail-card">
                             <div class="user-detail-row">
-                                <span class="user-detail-label">{{t.vps_ip}}</span>
+                                <span class="user-detail-label"><i class="fas fa-server"></i> {{t.vps_ip}}</span>
                                 <span class="user-detail-value">{{u.server_ip}}</span>
                             </div>
                             <div class="user-detail-row">
-                                <span class="user-detail-label">{{t.hwid}}</span>
-                                <span class="user-detail-value">{{u.hwid or '-'}}</span>
+                                <span class="user-detail-label"><i class="fas fa-user"></i> {{t.username}}</span>
+                                <span class="user-detail-value">{{u.user}}</span>
                             </div>
                             <div class="user-detail-row">
-                                <span class="user-detail-label">{{t.day_left}}</span>
-                                <span class="user-detail-value" style="color: {% if 'Overdue' in u.days_left %}var(--delete-btn){% else %}var(--ok){% endif %};">{{u.days_left}}</span>
+                                <span class="user-detail-label"><i class="fas fa-lock"></i> {{t.password}}</span>
+                                <span class="user-detail-value">{{u.password}}</span>
                             </div>
                             <div class="user-detail-row">
-                                <span class="user-detail-label">{{t.expire_date}}</span>
+                                <span class="user-detail-label"><i class="fas fa-fingerprint"></i> {{t.hwid}}</span>
+                                <span class="user-detail-value">{{u.hwid or 'N/A'}}</span>
+                            </div>
+                            <div class="user-detail-row">
+                                <span class="user-detail-label"><i class="fas fa-clock"></i> {{t.day_left}}</span>
+                                <span class="user-detail-value {{u.days_left_class}}">{{u.days_left}}</span>
+                            </div>
+                            <div class="user-detail-row">
+                                <span class="user-detail-label"><i class="fas fa-calendar-alt"></i> {{t.expire_date}}</span>
                                 <span class="user-detail-value">{{u.expires or 'N/A'}}</span>
                             </div>
                             <div class="user-detail-row">
-                                <span class="user-detail-label">{{t.bandwidth}} (Used/Limit)</span>
-                                <span class="user-detail-value">{{u.bandwidth_used}} / {{u.bandwidth_limit}} GB</span>
+                                <span class="user-detail-label"><i class="fas fa-tachometer-alt"></i> {{t.status}}</span>
+                                <span class="user-detail-value pill pill-{{u.status|lower}}">{{u.status}}</span>
                             </div>
                             <div class="user-detail-row" style="border-bottom: none;">
-                                <span class="user-detail-label">{{t.max_conn}}</span>
+                                <span class="user-detail-label"><i class="fas fa-link"></i> {{t.max_conn}}</span>
                                 <span class="user-detail-value">{{u.concurrent_conn}}</span>
                             </div>
                         </div>
@@ -1095,33 +1204,31 @@ tr:hover {
             </div>
         </div>
         
-        <!-- Theme Content -->
+        <!-- Theme Content (Toggle Switch) -->
         <div id="themeContent" class="setting-group-content active">
-            <div class="setting-group">
-                <label class="setting-label">Choose Theme</label>
-                <div class="theme-options">
-                    <div class="theme-option {% if theme == 'dark' %}active{% endif %}" data-theme="dark" onclick="changeTheme('dark')">
-                        <i class="fas fa-moon"></i> Dark
-                    </div>
-                    <div class="theme-option {% if theme == 'light' %}active{% endif %}" data-theme="light" onclick="changeTheme('light')">
-                        <i class="fas fa-sun"></i> Light
-                    </div>
-                </div>
+            <div class="toggle-container">
+                <span class="toggle-label"><i class="fas fa-moon"></i> Dark Mode</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="themeToggle" onchange="toggleTheme(this.checked)">
+                    <span class="slider">
+                        <span class="toggle-text on">DARK</span>
+                        <span class="toggle-text off">LIGHT</span>
+                    </span>
+                </label>
             </div>
         </div>
         
-        <!-- Language Content -->
+        <!-- Language Content (Toggle Switch) -->
         <div id="languageContent" class="setting-group-content">
-            <div class="setting-group">
-                <label class="setting-label">Choose Language</label>
-                <div class="lang-options">
-                    <div class="lang-option {% if lang == 'my' %}active{% endif %}" data-lang="my" onclick="changeLanguage('my')">
-                        <i class="fas fa-language"></i> မြန်မာ
-                    </div>
-                    <div class="lang-option {% if lang == 'en' %}active{% endif %}" data-lang="en" onclick="changeLanguage('en')">
-                        <i class="fas fa-language"></i> English
-                    </div>
-                </div>
+             <div class="toggle-container">
+                <span class="toggle-label"><i class="fas fa-language"></i> {{t.language}}</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="langToggle" onchange="toggleLanguage(this.checked)">
+                    <span class="slider">
+                        <span class="toggle-text on">MY</span>
+                        <span class="toggle-text off">EN</span>
+                    </span>
+                </label>
             </div>
         </div>
 
@@ -1152,6 +1259,7 @@ const allUsers = [
         status: "{{u.status}}", 
         expires: "{{u.expires}}",
         days_left: "{{u.days_left}}",
+        days_left_class: "{{u.days_left_class}}",
         port: "{{u.port}}",
         server_ip: "{{u.server_ip}}",
         bw_used: "{{u.bandwidth_used}}",
@@ -1189,6 +1297,13 @@ function openSettings() {
     document.getElementById('settingsModal').classList.add('active');
     // Initialize to show Theme tab first
     showSettingTab('theme');
+    
+    // Set initial toggle state based on current theme/lang
+    const currentTheme = document.body.getAttribute('data-theme');
+    document.getElementById('themeToggle').checked = (currentTheme === 'dark');
+
+    const currentLang = document.documentElement.lang;
+    document.getElementById('langToggle').checked = (currentLang === 'my');
 }
 
 function closeSettings() {
@@ -1220,20 +1335,16 @@ function showSettingTab(tabName) {
     }
 }
 
-// Theme Functions
-function changeTheme(theme) {
+// Theme Functions (Toggle)
+function toggleTheme(isChecked) {
+    const theme = isChecked ? 'dark' : 'light';
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
-    
-    // Update active state
-    document.querySelectorAll('.theme-option').forEach(option => {
-        option.classList.remove('active');
-    });
-    event.currentTarget.classList.add('active');
 }
 
-// Language Functions
-function changeLanguage(lang) {
+// Language Functions (Toggle)
+function toggleLanguage(isChecked) {
+    const lang = isChecked ? 'my' : 'en';
     window.location.href = '/set_lang?lang=' + lang;
 }
 
@@ -1242,23 +1353,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const storedTheme = localStorage.getItem('theme') || 'dark';
     document.body.setAttribute('data-theme', storedTheme);
     
-    // Set active theme option
-    document.querySelectorAll('.theme-option').forEach(option => {
-        option.classList.remove('active');
-        if (option.getAttribute('data-theme') === storedTheme) {
-            option.classList.add('active');
-        }
-    });
-    
-    // Set active language option (for display purposes in modal)
-    const currentLang = document.documentElement.lang;
-    document.querySelectorAll('.lang-option').forEach(option => {
-        option.classList.remove('active');
-        if (option.getAttribute('data-lang') === currentLang) {
-            option.classList.add('active');
-        }
-    });
-
+    // Set initial state of theme toggle on page load (important for UI consistency)
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.checked = (storedTheme === 'dark');
+    }
+    const langToggle = document.getElementById('langToggle');
+    if (langToggle) {
+        langToggle.checked = (document.documentElement.lang === 'my');
+    }
 
     // Handle initial active section (if not home)
     const activeSection = document.querySelector('.content-section.active');
@@ -1317,7 +1420,7 @@ function deleteUser(username) {
     }
 }
 
-// TOGGLE DETAIL ROW FUNCTION (NEW)
+// TOGGLE DETAIL ROW FUNCTION
 function toggleDetailRow(button, detailRowId) {
     const detailRow = document.getElementById(detailRowId);
     if (detailRow.style.display === 'none' || detailRow.style.display === '') {
