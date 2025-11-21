@@ -11,3 +11,10 @@ bash <(curl -fsSL https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/ma
 ```
 bash <(curl -fsSL https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/restart.sh)
 ```
+
+
+### Uninstall Script
+
+```
+bash <(curl -fsSL https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/uninstall.sh)
+```
