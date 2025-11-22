@@ -989,7 +989,7 @@ input:checked + .slider .toggle-text.on {
         padding: 20px;
     }
     
-    /* FIXED: Mobile User Card Layout */
+    /* FIXED: Mobile User Card Layout - ALL DETAILS VISIBLE */
     .user-card-mobile {
         background: var(--card);
         border-radius: var(--radius-lg);
@@ -999,7 +999,7 @@ input:checked + .slider .toggle-text.on {
         border: 1px solid var(--bd);
         transition: var(--transition);
         
-        /* Improved grid layout for better mobile display */
+        /* Improved layout for better mobile display */
         display: flex;
         flex-direction: column;
         gap: 15px;
@@ -1045,9 +1045,10 @@ input:checked + .slider .toggle-text.on {
     
     .user-card-details {
         margin-top: 0;
+        width: 100%;
     }
     
-    /* FIXED: Mobile Detail Card Layout */
+    /* FIXED: Mobile Detail Card Layout - ALL FIELDS VISIBLE */
     .user-card-details .user-detail-card {
         background: var(--bg);
         border-radius: var(--radius);
@@ -1078,6 +1079,9 @@ input:checked + .slider .toggle-text.on {
         font-weight: 500;
         font-size: 0.9em;
         flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .user-card-details .user-detail-value {
@@ -1409,6 +1413,7 @@ input:checked + .slider .toggle-text.on {
                         </div>
                     </td>
                 </tr>
+                <!-- FIXED: Detail Row with ALL User Information -->
                 <tr class="detail-row" id="detail-row-{{loop.index0}}" style="display:table-row;">
                     <td colspan="5" style="padding-top: 8px; padding-bottom: 20px; border-bottom: 2px solid var(--bd);">
                         <div class="user-detail-card">
@@ -1448,7 +1453,7 @@ input:checked + .slider .toggle-text.on {
             </table>
         </div>
         
-        <!-- FIXED: Mobile Card View -->
+        <!-- FIXED: Mobile Card View with ALL User Details -->
         <div class="mobile-user-list">
             {% for u in users %}
             <div class="user-card-mobile" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}">
@@ -1463,30 +1468,31 @@ input:checked + .slider .toggle-text.on {
                     <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
                 </div>
                 
+                <!-- FIXED: ALL User Details Visible in Mobile View -->
                 <div class="user-card-details">
                     <div class="user-detail-card">
                         <div class="user-detail-row">
-                            <span class="user-detail-label">{{t.vps_ip}}</span>
+                            <span class="user-detail-label"><i class="fas fa-server"></i> {{t.vps_ip}}</span>
                             <span class="user-detail-value">{{u.server_ip}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label">{{t.password}}</span>
+                            <span class="user-detail-label"><i class="fas fa-lock"></i> {{t.password}}</span>
                             <span class="user-detail-value">{{u.password}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label">{{t.hwid}}</span>
+                            <span class="user-detail-label"><i class="fas fa-fingerprint"></i> {{t.hwid}}</span>
                             <span class="user-detail-value">{{u.hwid or 'N/A'}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label">{{t.day_left}}</span>
+                            <span class="user-detail-label"><i class="fas fa-clock"></i> {{t.day_left}}</span>
                             <span class="user-detail-value {{u.days_left_class}}">{{u.days_left}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label">{{t.expire_date}}</span>
+                            <span class="user-detail-label"><i class="fas fa-calendar-alt"></i> {{t.expire_date}}</span>
                             <span class="user-detail-value">{{u.expires or 'N/A'}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label">{{t.max_conn}}</span>
+                            <span class="user-detail-label"><i class="fas fa-link"></i> {{t.max_conn}}</span>
                             <span class="user-detail-value">{{u.concurrent_conn}}</span>
                         </div>
                     </div>
@@ -1697,8 +1703,8 @@ input:checked + .slider .toggle-text.on {
                 <label class="toggle-switch">
                     <input type="checkbox" id="themeToggle" onchange="toggleTheme(this.checked)">
                     <span class="slider">
-                        <span class="toggle-text on"></span>
-                        <span class="toggle-text off"></span>
+                        <span class="toggle-text on">DARK</span>
+                        <span class="toggle-text off">LIGHT</span>
                     </span>
                 </label>
             </div>
