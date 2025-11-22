@@ -181,22 +181,68 @@ html,body{
     color: rgba(255, 255, 255, 0.6);
 }
 
-/* Checkbox styling */
+/* FIXED: Custom Checkbox Styling */
 .checkbox-container {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 10px;
+    gap: 12px;
     margin: 20px 0 30px 0;
     cursor: pointer;
     font-size: 0.95em;
     color: rgba(255, 255, 255, 0.9);
+    position: relative;
+    padding-left: 0;
 }
 
+/* Hide default checkbox */
 .checkbox-container input[type="checkbox"] {
+    opacity: 0;
+    position: absolute;
+    width: 0;
+    height: 0;
+}
+
+/* Custom checkbox */
+.checkbox-custom {
     width: 20px;
     height: 20px;
-    accent-color: white;
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 4px;
+    background: transparent;
+    position: relative;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+/* Checkmark */
+.checkbox-custom::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    opacity: 0;
+    transition: var(--transition);
+}
+
+/* Checked state */
+.checkbox-container input[type="checkbox"]:checked + .checkbox-custom {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.9);
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkbox-custom::after {
+    opacity: 1;
+}
+
+.checkbox-container:hover .checkbox-custom {
+    border-color: rgba(255, 255, 255, 0.9);
+    transform: scale(1.1);
 }
 
 /* Login button */
@@ -931,7 +977,7 @@ input:checked + .slider .toggle-text.on {
     opacity: 1;
 }
 
-/* --- Mobile/Card View Specific CSS --- */
+/* --- FIXED: Mobile/Card View Specific CSS --- */
 @media (max-width: 768px) {
     .table-container {
         display: none;
@@ -942,6 +988,8 @@ input:checked + .slider .toggle-text.on {
     .form-card {
         padding: 20px;
     }
+    
+    /* FIXED: Mobile User Card Layout */
     .user-card-mobile {
         background: var(--card);
         border-radius: var(--radius-lg);
@@ -951,10 +999,10 @@ input:checked + .slider .toggle-text.on {
         border: 1px solid var(--bd);
         transition: var(--transition);
         
-        display: grid;
-        grid-template-columns: 1fr auto;
-        grid-template-rows: auto auto 1fr auto;
-        gap: 12px;
+        /* Improved grid layout for better mobile display */
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
     }
 
     .user-card-mobile:hover {
@@ -963,38 +1011,97 @@ input:checked + .slider .toggle-text.on {
     }
 
     .user-card-header {
-        grid-column: 1 / 3;
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         padding-bottom: 15px;
         border-bottom: 1px solid var(--bd);
+        flex-wrap: wrap;
+        gap: 10px;
     }
+    
     .user-card-name {
-        font-size: 1.3em;
+        font-size: 1.4em;
         font-weight: 700;
         color: var(--primary-btn);
+        flex: 1;
+        min-width: 200px;
     }
 
     .user-card-port {
-        grid-column: 2 / 3;
-        grid-row: 1;
-        align-self: flex-start;
+        background: var(--gradient-success);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    
+    .user-card-status {
+        margin-top: 5px;
+        width: 100%;
     }
     
     .user-card-details {
-        grid-column: 1 / 3;
-        grid-row: 3;
-        margin-top: 15px;
+        margin-top: 0;
     }
-    .user-card-actions {
-        grid-column: 1 / 3;
-        grid-row: 4;
+    
+    /* FIXED: Mobile Detail Card Layout */
+    .user-card-details .user-detail-card {
+        background: var(--bg);
+        border-radius: var(--radius);
+        padding: 15px;
+        margin-top: 0;
+        font-size: 0.9em;
         display: flex;
-        justify-content: flex-start;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+        border: 1px solid var(--bd);
+    }
+
+    .user-card-details .user-detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px dotted var(--bd);
+    }
+
+    .user-card-details .user-detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .user-card-details .user-detail-label {
+        color: var(--detail-label-color);
+        font-weight: 500;
+        font-size: 0.9em;
+        flex: 1;
+    }
+
+    .user-card-details .user-detail-value {
+        font-weight: 600;
+        text-align: right;
+        word-break: break-word;
+        flex: 1;
+        color: var(--fg);
+        font-size: 0.9em;
+    }
+    
+    .user-card-actions {
+        display: flex;
+        justify-content: space-between;
         gap: 12px;
         padding-top: 15px;
         border-top: 1px solid var(--bd);
+    }
+    
+    .user-card-actions .btn {
+        flex: 1;
+        justify-content: center;
+        padding: 12px 16px;
+        font-size: 0.9em;
     }
     
     .container {
@@ -1014,6 +1121,22 @@ input:checked + .slider .toggle-text.on {
     .logo {
         height: 50px;
         width: 50px;
+    }
+    
+    /* Fix for very small screens */
+    @media (max-width: 360px) {
+        .user-card-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .user-card-port {
+            align-self: flex-start;
+        }
+        
+        .user-card-actions {
+            flex-direction: column;
+        }
     }
 }
 @media (min-width: 769px) {
@@ -1120,8 +1243,10 @@ input:checked + .slider .toggle-text.on {
                 <input name="p" type="password" required>
             </div>
             
+            <!-- FIXED: Custom Checkbox for Save Login -->
             <label class="checkbox-container">
                 <input type="checkbox" name="remember_me" checked>
+                <span class="checkbox-custom"></span>
                 {{t.save_login}}
             </label>
             
@@ -1323,7 +1448,7 @@ input:checked + .slider .toggle-text.on {
             </table>
         </div>
         
-        <!-- Mobile Card View -->
+        <!-- FIXED: Mobile Card View -->
         <div class="mobile-user-list">
             {% for u in users %}
             <div class="user-card-mobile" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}">
@@ -1331,15 +1456,15 @@ input:checked + .slider .toggle-text.on {
                     <div class="user-card-name">
                         <i class="fas fa-user-circle" style="margin-right: 8px;"></i> {{u.user}}
                     </div>
-                    <div class="user-card-port pill pill-online" style="background-color: var(--ok); width: fit-content;">PORT {{u.port or 'N/A'}}</div>
+                    <div class="user-card-port">PORT {{u.port or 'N/A'}}</div>
                 </div>
                 
-                <div style="grid-column: 1 / 2; grid-row: 2; margin-top: 8px;">
+                <div class="user-card-status">
                     <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
                 </div>
                 
                 <div class="user-card-details">
-                     <div class="user-detail-card" style="background: var(--bg); border: none; padding: 0;">
+                    <div class="user-detail-card">
                         <div class="user-detail-row">
                             <span class="user-detail-label">{{t.vps_ip}}</span>
                             <span class="user-detail-value">{{u.server_ip}}</span>
@@ -1360,7 +1485,7 @@ input:checked + .slider .toggle-text.on {
                             <span class="user-detail-label">{{t.expire_date}}</span>
                             <span class="user-detail-value">{{u.expires or 'N/A'}}</span>
                         </div>
-                        <div class="user-detail-row" style="border-bottom: none;">
+                        <div class="user-detail-row">
                             <span class="user-detail-label">{{t.max_conn}}</span>
                             <span class="user-detail-value">{{u.concurrent_conn}}</span>
                         </div>
@@ -1368,7 +1493,7 @@ input:checked + .slider .toggle-text.on {
                 </div>
                 
                 <div class="user-card-actions">
-                     <button class="btn btn-primary" onclick="openEditModal('{{u.user}}', '{{u.password}}', '{{u.hwid}}')" title="Edit Credentials">
+                    <button class="btn btn-primary" onclick="openEditModal('{{u.user}}', '{{u.password}}', '{{u.hwid}}')" title="Edit Credentials">
                         <i class="fas fa-key"></i> Edit
                     </button>
                     <button class="btn btn-danger" onclick="deleteUser('{{u.user}}')" title="Delete User">
@@ -1572,8 +1697,8 @@ input:checked + .slider .toggle-text.on {
                 <label class="toggle-switch">
                     <input type="checkbox" id="themeToggle" onchange="toggleTheme(this.checked)">
                     <span class="slider">
-                        <span class="toggle-text on">DARK</span>
-                        <span class="toggle-text off">LIGHT</span>
+                        <span class="toggle-text on"></span>
+                        <span class="toggle-text off"></span>
                     </span>
                 </label>
             </div>
@@ -1723,7 +1848,7 @@ function filterUsers() {
         const hwid = card.getAttribute('data-hwid').toLowerCase();
 
         const shouldShow = user.includes(search) || hwid.includes(search);
-        card.style.display = shouldShow ? 'grid' : 'none';
+        card.style.display = shouldShow ? 'flex' : 'none';
     });
 }
 
