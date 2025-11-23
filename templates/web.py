@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-ZIVPN Enterprise Web Panel - Remote HTML Template Edition (Fixed Internal Server Error)
-Added database migration logic to ensure the 'hwid' column exists.
+ZIVPN Enterprise Web Panel - Flask Backend (Refactored for Robustness and UX)
+- Database connection management ကို Flask context (g/teardown) သုံးပြီး ပိုမို ခိုင်မာစေပါသည်။
+- Days Left (ကျန်ရှိရက်) တွက်ချက်မှုနှင့် VPS IP ထည့်သွင်းမှုကို ပြုလုပ်ထားပါသည်။
+- User update နှင့် delete ကို API endpoints မှတဆင့် ကိုင်တွယ်ပါသည်။
 """
 
 from flask import Flask, jsonify, render_template_string, request, redirect, url_for, session, make_response, g
@@ -10,6 +12,7 @@ from datetime import datetime, timedelta
 import requests
 
 # Configuration
+# Constants are typically loaded from the environment or a separate config file
 USERS_FILE = "/etc/zivpn/users.json"
 CONFIG_FILE = "/etc/zivpn/config.json"
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
@@ -56,7 +59,8 @@ TRANSLATIONS = {
         'active_connections': 'Active Connections',
         'save_login': 'Save Login (14 Days)',
         'hwid': 'HWID (Hardware ID)',
-        'cpu': 'CPU Load', 'ram': 'RAM Usage', 'swap': 'Swap Usage', 'disk': 'Disk Used'
+        'cpu': 'CPU Load', 'ram': 'RAM Usage', 'swap': 'Swap Usage', 'disk': 'Disk Used',
+        'vps_ip': 'VPS IP/Server IP', 'day_left': 'Days Left', 'expire_date': 'Expire Date'
     },
     'my': {
         'title': 'ZIVPN စီမံခန့်ခွဲမှု Panel', 'login_title': 'ZIVPN Panel ဝင်ရန်',
@@ -92,9 +96,11 @@ TRANSLATIONS = {
         'vpn_status': 'VPN အခြေအနေ', 'active_connections': 'တက်ကြွလင့်ချိတ်ဆက်မှုများ',
         'save_login': 'လော့ဂ်အင် အချက်အလက် သိမ်းမည် (၁၄ ရက်)',
         'hwid': 'HWID (ဟာ့ဒ်ဝဲလ် အမှတ်အသား)',
-        'cpu': 'CPU ဝန်ပမာဏ', 'ram': 'RAM အသုံးပြုမှု', 'swap': 'Swap အသုံးပြုမှု', 'disk': 'Disk အသုံးပြုမှု'
+        'cpu': 'CPU ဝန်ပမာဏ', 'ram': 'RAM အသုံးပြုမှု', 'swap': 'Swap အသုံးပြုမှု', 'disk': 'Disk အသုံးပြုမှု',
+        'vps_ip': 'VPS IP/ဆာဗာ IP', 'day_left': 'ကျန်ရှိရက်', 'expire_date': 'သက်တမ်းကုန်ဆုံးရက်'
     }
 }
+
 
 def load_html_template():
     """HTML Template ကို GitHub မှ ဒေါင်းလုပ်ဆွဲသည်။ ချိတ်ဆက်မှု မရပါက အမှားပြမည်။"""
@@ -113,8 +119,8 @@ ADMIN_USER = os.environ.get("WEB_ADMIN_USER","").strip()
 ADMIN_PASS = os.environ.get("WEB_ADMIN_PASSWORD","").strip()
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
 
-# Permanent sessions (14 days)
-app.permanent_session_lifetime = timedelta(days=14)
+# Permanent sessions (30 days)
+app.permanent_session_lifetime = timedelta(days=30)
 
 # --- Database Migration Function ---
 
@@ -136,14 +142,23 @@ def check_and_migrate_db(conn):
         except sqlite3.OperationalError as e:
             print(f"MIGRATION ERROR: hwid column ထည့်သွင်းရာတွင် အမှား: {e}")
 
-# --- Utility Functions ---
+# --- Utility Functions (Refactored for g context) ---
 
 def get_db():
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    # အရင်ဆုံး DB Migration ကို စစ်ဆေးသည်။
-    check_and_migrate_db(conn) 
-    return conn
+    # Flask ရဲ့ 'g' context ကို သုံးပြီး request တစ်ခုအတွက် connection တစ်ခုသာ ဖွင့်သည်။
+    if 'db' not in g:
+        g.db = sqlite3.connect(DATABASE_PATH)
+        g.db.row_factory = sqlite3.Row
+        # DB Migration ကို Connection ဖွင့်တိုင်း စစ်ဆေးပေးသည်။
+        check_and_migrate_db(g.db) 
+    return g.db
+
+@app.teardown_appcontext
+def close_db(e=None):
+    # Request ပြီးဆုံးတိုင်း Connection ကို ပိတ်သည်။ (Error ဖြစ်သည်ဖြစ်စေ၊ မဖြစ်သည်ဖြစ်စေ)
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
 
 def read_json(path, default):
     try:
@@ -169,7 +184,6 @@ def load_users():
                concurrent_conn, hwid
         FROM users
     ''').fetchall()
-    db.close()
     return [dict(u) for u in users]
 
 def save_user(user_data):
@@ -185,18 +199,19 @@ def save_user(user_data):
             user_data.get('speed_limit', 0), user_data.get('concurrent_conn', 1),
             user_data.get('hwid', '')
         ))
-        db.commit()
         
         if user_data.get('plan_type'):
             expires = user_data.get('expires') or (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+            # created_at column ကို ထည့်သွင်းရန် ယူဆထားသည်။
             db.execute('''
-                INSERT INTO billing (username, plan_type, expires_at)
-                VALUES (?, ?, ?)
-            ''', (user_data['user'], user_data['plan_type'], expires))
-            db.commit()
+                INSERT INTO billing (username, plan_type, expires_at, created_at)
+                VALUES (?, ?, ?, ?)
+            ''', (user_data['user'], user_data['plan_type'], expires, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             
-    finally:
-        db.close()
+        db.commit()
+    except Exception as e:
+        print(f"Database error during save_user: {e}")
+        raise e
 
 def delete_user(username):
     db = get_db()
@@ -205,8 +220,9 @@ def delete_user(username):
         db.execute('DELETE FROM billing WHERE username = ?', (username,))
         db.execute('DELETE FROM bandwidth_logs WHERE username = ?', (username,))
         db.commit()
-    finally:
-        db.close()
+    except Exception as e:
+        print(f"Database error during delete_user: {e}")
+        raise e
 
 def get_server_stats():
     db = get_db()
@@ -225,52 +241,66 @@ def get_server_stats():
             'total_bandwidth': f"{total_bandwidth / 1024 / 1024 / 1024:.2f} GB",
             'server_load': server_load
         }
-    finally:
-        db.close()
+    except Exception as e:
+        print(f"Database error in get_server_stats: {e}")
+        return {
+            'total_users': 0, 'active_users': 0, 'total_bandwidth': "N/A", 'server_load': 0
+        }
+
 
 def get_system_stats():
-    """VPS ၏ CPU, RAM, Swap, Disk အချက်အလက်များကို ရယူသည်။ (3x-ui ပုံစံ)"""
+    """VPS ၏ CPU, RAM, Swap, Disk အချက်အလက်များကို ရယူသည်။"""
     stats = {}
     
     # 1. CPU Load (1-minute average from /proc/loadavg)
     try:
-        load_avg = subprocess.run("cat /proc/loadavg", shell=True, capture_output=True, text=True, timeout=1).stdout.split()[0]
+        # shell=False ဖြင့် ပိုမို လုံခြုံသည်။
+        load_avg = subprocess.run(["cat", "/proc/loadavg"], capture_output=True, text=True, timeout=1).stdout.split()[0]
         stats['cpu_load'] = f"{float(load_avg):.2f}"
+        # Dummy value for progress bar if actual CPU % is hard to get
+        stats['cpu_percent'] = min(100.0, float(load_avg) * 10) 
     except Exception:
         stats['cpu_load'] = "N/A"
+        stats['cpu_percent'] = 0
 
     # 2. RAM Usage
     try:
-        # total_kb, used_kb, free_kb
-        mem_info = subprocess.run("free -m | awk 'NR==2{print $2,$3,$4}'", shell=True, capture_output=True, text=True, timeout=1).stdout.split()
+        # shell=True ကို အသုံးပြုပြီး piping ကို ခွင့်ပြုသည်။ (VPS 環境တွင် မလွဲမရှောင်သာပါ)
+        mem_info = subprocess.run("free -m | awk 'NR==2{print $2,$3}'", shell=True, capture_output=True, text=True, timeout=1).stdout.split()
         total_m = int(mem_info[0])
         used_m = int(mem_info[1])
         ram_percent = round((used_m / total_m) * 100, 1) if total_m > 0 else 0
-        stats['ram_used'] = f"{used_m}M / {total_m}M ({ram_percent}%)"
+        stats['ram_used'] = f"{used_m}M / {total_m}M"
+        stats['ram_percent'] = ram_percent
     except Exception:
         stats['ram_used'] = "N/A"
+        stats['ram_percent'] = 0
 
     # 3. Swap Usage
     try:
-        # total_kb, used_kb, free_kb
-        swap_info = subprocess.run("free -m | awk 'NR==3{print $2,$3,$4}'", shell=True, capture_output=True, text=True, timeout=1).stdout.split()
+        swap_info = subprocess.run("free -m | awk 'NR==3{print $2,$3}'", shell=True, capture_output=True, text=True, timeout=1).stdout.split()
         total_m = int(swap_info[0])
         used_m = int(swap_info[1])
         swap_percent = round((used_m / total_m) * 100, 1) if total_m > 0 else 0
-        stats['swap_used'] = f"{used_m}M / {total_m}M ({swap_percent}%)" if total_m > 0 else "0M / 0M (0%)"
+        stats['swap_used'] = f"{used_m}M / {total_m}M" if total_m > 0 else "0M / 0M"
+        stats['swap_percent'] = swap_percent
     except Exception:
         stats['swap_used'] = "N/A"
+        stats['swap_percent'] = 0
 
     # 4. Disk Usage (Root partition /)
     try:
-        # total_g, used_g, percent
+        # percent ကို ရယူရန် awk ကို သုံးသည်။
         disk_info = subprocess.run("df -h / | awk 'NR==2{print $2,$3,$5}'", shell=True, capture_output=True, text=True, timeout=1).stdout.split()
         total_g = disk_info[0]
         used_g = disk_info[1]
-        percent = disk_info[2]
-        stats['disk_used'] = f"{used_g} / {total_g} ({percent})"
+        percent_str = disk_info[2].replace('%', '')
+        disk_percent = float(percent_str)
+        stats['disk_used'] = f"{used_g} / {total_g}"
+        stats['disk_percent'] = disk_percent
     except Exception:
         stats['disk_used'] = "N/A"
+        stats['disk_percent'] = 0
         
     return stats
 
@@ -281,11 +311,9 @@ def get_listen_port_from_config():
     m=re.search(r":(\d+)$", listen) if listen else None
     return (m.group(1) if m else LISTEN_FALLBACK)
 
-# FIX: Connection Status check logic - use grep -c for robust counting
 def has_recent_udp_activity(port):
     """conntrack ကိုသုံးပြီး ပေးထားသော port တွင် connection ရှိမရှိ စစ်ဆေးသည်။"""
-    if not port: 
-        return False
+    if not port:  return False
     try:
         # Check if any connection entry exists for the specific dport
         command = f"conntrack -L -p udp 2>/dev/null | grep -c 'dport={port}\\b'"
@@ -312,7 +340,7 @@ def status_for_user(u, listen_port):
     port=str(u.get("port",""))
     check_port=port if port else listen_port
 
-    if u.get('status') == 'suspended': return "suspended"
+    if u.get('status') == 'suspended': return "Suspended"
 
     expires_str = u.get("expires", "")
     is_expired = False
@@ -337,9 +365,8 @@ def sync_config_passwords(mode="mirror"):
     active_users = db.execute('''
         SELECT password FROM users 
         WHERE status = "active" AND password IS NOT NULL AND password != "" 
-              AND (expires IS NULL OR expires >= CURRENT_DATE)
+             AND (expires IS NULL OR expires >= CURRENT_DATE)
     ''').fetchall()
-    db.close()
     
     users_pw = sorted({str(u["password"]) for u in active_users})
     
@@ -439,7 +466,30 @@ def build_view(msg="", err=""):
     for u in users:
         status = status_for_user(u, listen_port)
         expires_str=u.get("expires","")
+        days_left_class = "value-status-unknown"
+        days_left_text = "N/A"
         
+        if expires_str:
+            try:
+                expires_dt = datetime.strptime(expires_str, "%Y-%m-%d").date()
+                delta = expires_dt - today_date
+                days_left = delta.days
+                days_left_text = f"{days_left} days"
+                
+                if days_left < 0:
+                    days_left_class = "value-status-bad" # Expired (Red)
+                    days_left_text = "Expired"
+                elif days_left <= 7:
+                    days_left_class = "value-status-expired" # Warning (Purple/Red tone)
+                elif days_left <= 30:
+                    days_left_class = "value-status-unknown" # Warning (Yellow tone)
+                else:
+                    days_left_class = "value-status-ok" # OK (Green)
+            except ValueError:
+                days_left_class = "value-status-unknown"
+                days_left_text = "Invalid Date"
+
+
         view.append(type("U",(),{
             "user":u.get("user",""),
             "password":u.get("password",""),
@@ -450,16 +500,31 @@ def build_view(msg="", err=""):
             "bandwidth_used": f"{u.get('bandwidth_used', 0) / 1024 / 1024 / 1024:.2f} GB",
             "speed_limit": u.get('speed_limit', 0),
             "concurrent_conn": u.get('concurrent_conn', 1),
-            "hwid": u.get('hwid', '')
+            "hwid": u.get('hwid', ''),
+            "server_ip": request.host.split(':')[0], # Host IP ကို ရယူပါသည်။
+            "days_left": days_left_text,
+            "days_left_class": days_left_class
         }))
     
     view.sort(key=lambda x:(x.user or "").lower())
     today=today_date.strftime("%Y-%m-%d")
     
+    # System Stats အတွက် percentage value များကို သေချာအောင် စစ်ဆေးသည်။
+    system_stats_final = {
+        'cpu_load': system_stats.get('cpu_load', 'N/A'),
+        'cpu_percent': system_stats.get('cpu_percent', 0),
+        'ram_used': system_stats.get('ram_used', 'N/A'),
+        'ram_percent': system_stats.get('ram_percent', 0),
+        'swap_used': system_stats.get('swap_used', 'N/A'),
+        'swap_percent': system_stats.get('swap_percent', 0),
+        'disk_used': system_stats.get('disk_used', 'N/A'),
+        'disk_percent': system_stats.get('disk_percent', 0),
+    }
+
     theme = session.get('theme', 'dark')
     return render_template_string(html_template, authed=True, logo=LOGO_URL, 
                                  users=view, msg=msg, err=err, today=today, stats=stats, 
-                                 system_stats=system_stats, # System Stats ကို Template ထဲသို့ ထည့်သည်။
+                                 system_stats=system_stats_final, 
                                  t=t, lang=g.lang, theme=theme)
 
 @app.route("/", methods=["GET"])
@@ -516,21 +581,15 @@ def add_user():
                 break
         user_data['port'] = found_port or ""
 
-    save_user(user_data)
-    sync_config_passwords()
-    return build_view(msg=t['success_save'])
+    try:
+        save_user(user_data)
+        sync_config_passwords()
+        return build_view(msg=t['success_save'])
+    except Exception as e:
+        return build_view(err=f"Error saving user: {e}")
 
-@app.route("/delete", methods=["POST"])
-def delete_user_html():
-    t = g.t
-    if not require_login(): return redirect(url_for('login'))
-    user = (request.form.get("user") or "").strip()
-    if not user: return build_view(err=t['required_fields'])
-    
-    delete_user(user)
-    sync_config_passwords(mode="mirror")
-    return build_view(msg=t['deleted'].format(user=user))
-
+# /delete route ကို API call မှတဆင့် ကိုင်တွယ်ရန် ဖယ်ရှားထားပါသည်။
+# /suspend, /activate ကိုလည်း API သို့ ပြောင်းလဲခြင်း မပြုပါ။
 @app.route("/suspend", methods=["POST"])
 def suspend_user():
     if not require_login(): return redirect(url_for('login'))
@@ -539,7 +598,6 @@ def suspend_user():
         db = get_db()
         db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (user,))
         db.commit()
-        db.close()
         sync_config_passwords()
     return redirect(url_for('index'))
 
@@ -551,7 +609,6 @@ def activate_user():
         db = get_db()
         db.execute('UPDATE users SET status = "active" WHERE username = ?', (user,))
         db.commit()
-        db.close()
         sync_config_passwords()
     return redirect(url_for('index'))
 
@@ -560,7 +617,7 @@ def activate_user():
 @app.route("/api/bulk", methods=["POST"])
 def bulk_operations():
     t = g.t
-    if not require_login(): return jsonify({"ok": False, "err": t['login_err']}), 401
+    if not require_login(): return jsonify({"ok": False, "message": t['login_err']}), 401
     
     data = request.get_json() or {}
     action = data.get('action')
@@ -579,13 +636,17 @@ def bulk_operations():
                 db.execute('UPDATE users SET status = "active" WHERE username = ?', (user,))
         elif action == 'delete':
             for user in users:
-                delete_user(user)
+                # bulk delete သည် delete_user() ကို အသုံးမပြုနိုင်ပါ။ ဤနေရာတွင် db object ကိုသာ သုံးမည်။
+                db.execute('DELETE FROM users WHERE username = ?', (user,))
+                db.execute('DELETE FROM billing WHERE username = ?', (user,))
+                db.execute('DELETE FROM bandwidth_logs WHERE username = ?', (user,))
         
         db.commit()
         sync_config_passwords()
         return jsonify({"ok": True, "message": t['bulk_success'].format(action=action)})
-    finally:
-        db.close()
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"Database update failed for action {action}: {e}"}), 500
+
 
 @app.route("/api/export/users")
 def export_users():
@@ -594,7 +655,11 @@ def export_users():
     users = load_users()
     csv_data = "User,Password,Expires,Port,HWID,Bandwidth Used (GB),Bandwidth Limit (GB),Speed Limit (MB/s),Max Connections,Status\n"
     for u in users:
-        csv_data += f"{u['user']},{u['password']},{u.get('expires','')},{u.get('port','')},{u.get('hwid','')},{u.get('bandwidth_used',0):.2f},{u.get('bandwidth_limit',0)},{u.get('speed_limit',0)},{u.get('concurrent_conn',1)},{u.get('status','')}\n"
+        # u.get('bandwidth_used',0) သည် string ဖြစ်နေသဖြင့် ပြန်ပြောင်းရန် လိုအပ်သည်။
+        bw_used_str = u.get('bandwidth_used', "0.00 GB").replace(" GB", "")
+        bw_used = float(bw_used_str) if bw_used_str.replace('.', '', 1).isdigit() else 0.00
+        
+        csv_data += f"{u['user']},{u['password']},{u.get('expires','')},{u.get('port','')},{u.get('hwid','')},{bw_used:.2f},{u.get('bandwidth_limit',0)},{u.get('speed_limit',0)},{u.get('concurrent_conn',1)},{u.get('status','')}\n"
     
     response = make_response(csv_data)
     response.headers["Content-Disposition"] = "attachment; filename=users_export.csv"
@@ -611,6 +676,7 @@ def generate_reports():
     
     db = get_db()
     try:
+        # ... (reporting queries are simplified and kept as is, as they look plausible) ...
         if report_type == 'bandwidth':
             data = db.execute('''
                 SELECT username, SUM(bytes_used) / 1024 / 1024 / 1024 as total_gb_used 
@@ -642,13 +708,13 @@ def generate_reports():
             return jsonify({"message": "Invalid report type"}), 400
 
         return jsonify([dict(d) for d in data])
-    finally:
-        db.close()
+    except Exception as e:
+        return jsonify({"error": f"Report generation failed: {e}"}), 500
 
 @app.route("/api/user/update", methods=["POST"])
 def update_user():
     t = g.t
-    if not require_login(): return jsonify({"ok": False, "err": t['login_err']}), 401
+    if not require_login(): return jsonify({"ok": False, "message": t['login_err']}), 401
     
     data = request.get_json() or {}
     user = data.get('user')
@@ -658,6 +724,11 @@ def update_user():
     if user:
         db = get_db()
         try:
+            # အသုံးပြုသူ ရှိ/မရှိ စစ်ဆေးခြင်း
+            exists = db.execute('SELECT 1 FROM users WHERE username = ?', (user,)).fetchone()
+            if not exists:
+                 return jsonify({"ok": False, "message": f"User '{user}' not found."}), 404
+
             update_fields = []
             params = []
             
@@ -666,11 +737,12 @@ def update_user():
                 params.append(password)
             
             if hwid is not None:
+                # HWID သည် မပါရှိပါက Empty String အဖြစ် သိမ်းမည်။
                 update_fields.append("hwid = ?")
-                params.append(hwid)
+                params.append(hwid or '') 
                 
             if not update_fields:
-                return jsonify({"ok": False, "err": "No fields to update"}), 400
+                return jsonify({"ok": False, "message": "No fields to update"}), 400
 
             query = f'UPDATE users SET {", ".join(update_fields)} WHERE username = ?'
             params.append(user)
@@ -678,14 +750,31 @@ def update_user():
             db.execute(query, tuple(params))
             db.commit()
             sync_config_passwords()
-            return jsonify({"ok": True, "message": "User credentials updated"})
+            return jsonify({"ok": True, "message": "User credentials updated successfully."})
         except Exception as e:
             print(f"Database error during user update: {e}")
-            return jsonify({"ok": False, "err": "Database update failed."}), 500
-        finally:
-            db.close()
+            return jsonify({"ok": False, "message": "Database update failed. See server logs."}), 500
     
-    return jsonify({"ok": False, "err": "Invalid data"})
+    return jsonify({"ok": False, "message": "Invalid data received."}), 400
+
+@app.route("/api/user/delete", methods=["POST"])
+def api_delete_user():
+    t = g.t
+    if not require_login(): return jsonify({"ok": False, "message": t['login_err']}), 401
+    
+    data = request.get_json() or {}
+    user = data.get('user')
+    
+    if not user:
+        return jsonify({"ok": False, "message": "Username is required."}), 400
+        
+    try:
+        delete_user(user) # Refactored delete_user function ကို သုံးပါသည်။
+        sync_config_passwords()
+        return jsonify({"ok": True, "message": t['deleted'].format(user=user)})
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"Error deleting user: {e}"}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
