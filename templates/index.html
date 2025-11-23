@@ -5,7 +5,6 @@
     <title>{{t.title}}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta http-equiv="refresh" content="120">
-    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
@@ -465,18 +464,13 @@ html,body{
 
 .system-stats-grid {
     display: grid;
-    grid-template-columns: 1fr; 
+    grid-template-columns: 1fr 1fr; /* Default 2x2 for smaller screens */
     gap: 20px;
     margin: 20px 0;
 }
-@media (min-width: 640px) {
-    .system-stats-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-}
 @media (min-width: 1024px) {
     .system-stats-grid {
-        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr 1fr; /* 4 columns on desktop */
     }
 }
 
@@ -528,6 +522,80 @@ html,body{
     color: var(--detail-label-color);
     font-weight: 600;
 }
+
+/* --- NEW: Circular Progress Styles --- */
+.circle-progress-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 10px;
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--bd);
+    transition: var(--transition);
+}
+
+.circle-progress {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    /* Default background before setting conic gradient in HTML */
+    background: conic-gradient(
+        var(--bd) 0deg,
+        var(--bd) 360deg
+    );
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+    transform: rotate(-90deg); /* Start the circle from the top */
+}
+
+.circle-progress::before {
+    content: '';
+    position: absolute;
+    width: 100px; /* Inner circle size */
+    height: 100px;
+    background: var(--card); /* Background color to create the ring effect */
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.circle-progress-text {
+    position: absolute;
+    transform: rotate(90deg); /* Re-rotate the text back to horizontal */
+    font-size: 1.5em;
+    font-weight: 800;
+    z-index: 2;
+    background: var(--gradient-primary); /* Use gradient text for percentage */
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Colors for the gradient fill (defined in HTML inline style) */
+/* The inline style will override the default conic-gradient here */
+/* .progress-cpu, .progress-ram, etc. are used for inline style in HTML */
+
+
+.circle-info-label {
+    font-size: 0.9em;
+    color: var(--detail-label-color);
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.2;
+}
+.circle-info-value {
+    font-size: 1em;
+    font-weight: 700;
+    color: var(--fg);
+    margin-top: 5px;
+    text-align: center;
+}
+/* --- END Circular Progress Styles --- */
+
 
 /* Forms and Tables */
 .form-card {
@@ -1199,32 +1267,11 @@ input:checked + .slider .toggle-text.on {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
-
-/* Progress bars for system stats */
-.progress-bar {
-    height: 8px;
-    background: var(--bd);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 8px;
-}
-
-.progress-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.5s ease;
-}
-
-.progress-cpu { background: var(--gradient-primary); }
-.progress-ram { background: var(--gradient-danger); }
-.progress-swap { background: var(--gradient-warning); }
-.progress-disk { background: var(--gradient-success); }
 </style>
 </head>
 <body data-theme="{{theme}}">
 
 {% if not authed %}
-<!-- Login screen -->
 <div class="login-container">
     <div class="login-logo-container">
         <img src="{{ logo }}" alt="ZIVPN" class="login-logo">
@@ -1243,7 +1290,6 @@ input:checked + .slider .toggle-text.on {
                 <input name="p" type="password" required>
             </div>
             
-            <!-- FIXED: Custom Checkbox for Save Login -->
             <label class="checkbox-container">
                 <input type="checkbox" name="remember_me" checked>
                 <span class="checkbox-custom"></span>
@@ -1259,7 +1305,6 @@ input:checked + .slider .toggle-text.on {
 {% else %}
 
 <div class="container">
-    <!-- Modern Header -->
     <header class="header">
         <div class="header-content">
             <div class="logo-container">
@@ -1276,9 +1321,7 @@ input:checked + .slider .toggle-text.on {
     {% if msg %}<div class="alert alert-success">{{msg}}</div>{% endif %}
     {% if err %}<div class="alert alert-error">{{err}}</div>{% endif %}
 
-    <!-- Home Section -->
     <div id="home" class="content-section active">
-        <!-- Dashboard Stats -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon" style="color:var(--primary-btn);">
@@ -1296,61 +1339,76 @@ input:checked + .slider .toggle-text.on {
             </div>
         </div>
 
-        <!-- System Stats -->
         <div class="form-card">
             <h3 class="form-title"><i class="fas fa-server"></i> {{t.server_info}}</h3>
             <div class="system-stats-grid">
-                 <div class="stat-card" style="padding:20px;">
-                    <div class="stat-icon" style="color: #6366f1;">
-                        <i class="fas fa-microchip"></i>
+                
+                <div class="circle-progress-container">
+                    <div class="circle-progress" style="
+                        --progress: {{ system_stats.cpu_percent }}%; 
+                        background: conic-gradient(
+                            var(--gradient-primary) calc(3.6deg * {{ system_stats.cpu_percent_raw }}), 
+                            var(--bd) 0%
+                        );
+                    ">
+                        <div class="circle-progress-text" style="background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{{ system_stats.cpu_percent }}</div>
                     </div>
-                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.cpu_load }}</div>
-                    <div class="stat-label">{{t.cpu}} (1 min)</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill progress-cpu" style="width: {{ system_stats.cpu_percent }}%"></div>
-                    </div>
+                    <div class="circle-info-label">{{t.cpu}} (Load)</div>
+                    <div class="circle-info-value">{{ system_stats.cpu_load }}</div>
                 </div>
-                <div class="stat-card" style="padding:20px;">
-                    <div class="stat-icon" style="color: #f43f5e;">
-                        <i class="fas fa-memory"></i>
+                
+                <div class="circle-progress-container">
+                    <div class="circle-progress" style="
+                        --progress: {{ system_stats.ram_percent }}%; 
+                        background: conic-gradient(
+                            var(--gradient-danger) calc(3.6deg * {{ system_stats.ram_percent_raw }}), 
+                            var(--bd) 0%
+                        );
+                    ">
+                        <div class="circle-progress-text" style="background: var(--gradient-danger); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{{ system_stats.ram_percent }}</div>
                     </div>
-                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.ram_used }}</div>
-                    <div class="stat-label">{{t.ram}}</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill progress-ram" style="width: {{ system_stats.ram_percent }}%"></div>
-                    </div>
+                    <div class="circle-info-label">{{t.ram}}</div>
+                    <div class="circle-info-value">{{ system_stats.ram_used }}</div>
                 </div>
-                <div class="stat-card" style="padding:20px;">
-                    <div class="stat-icon" style="color: #06b6d4;">
-                        <i class="fas fa-exchange-alt"></i>
+                
+                <div class="circle-progress-container">
+                    <div class="circle-progress" style="
+                        --progress: {{ system_stats.swap_percent }}%; 
+                        background: conic-gradient(
+                            var(--gradient-warning) calc(3.6deg * {{ system_stats.swap_percent_raw }}), 
+                            var(--bd) 0%
+                        );
+                    ">
+                        <div class="circle-progress-text" style="background: var(--gradient-warning); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{{ system_stats.swap_percent }}</div>
                     </div>
-                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.swap_used }}</div>
-                    <div class="stat-label">{{t.swap}}</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill progress-swap" style="width: {{ system_stats.swap_percent }}%"></div>
-                    </div>
+                    <div class="circle-info-label">{{t.swap}}</div>
+                    <div class="circle-info-value">{{ system_stats.swap_used }}</div>
                 </div>
-                <div class="stat-card" style="padding:20px;">
-                    <div class="stat-icon" style="color: #fbbf24;">
-                        <i class="fas fa-hdd"></i>
+                
+                <div class="circle-progress-container">
+                    <div class="circle-progress" style="
+                        --progress: {{ system_stats.disk_percent }}%; 
+                        background: conic-gradient(
+                            var(--gradient-success) calc(3.6deg * {{ system_stats.disk_percent_raw }}), 
+                            var(--bd) 0%
+                        );
+                    ">
+                        <div class="circle-progress-text" style="background: var(--gradient-success); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{{ system_stats.disk_percent }}</div>
                     </div>
-                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.disk_used }}</div>
-                    <div class="stat-label">{{t.disk}}</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill progress-disk" style="width: {{ system_stats.disk_percent }}%"></div>
-                    </div>
+                    <div class="circle-info-label">{{t.disk}}</div>
+                    <div class="circle-info-value">{{ system_stats.disk_used }}</div>
                 </div>
+                
             </div>
         </div>
 
-        <!-- Recent Activity -->
         <div class="form-card">
             <h3 class="form-title"><i class="fas fa-clock"></i> {{t.recent_activity}}</h3>
             <div style="max-height: 250px; overflow-y: auto;">
                 {% for u in users[:5] %}
                 <div style="padding: 14px; border-bottom: 1px solid var(--bd); display: flex; justify-content: space-between; align-items: center; transition: var(--transition);" 
-                     onmouseover="this.style.background='var(--card-hover)'" 
-                     onmouseout="this.style.background='transparent'">
+                    onmouseover="this.style.background='var(--card-hover)'" 
+                    onmouseout="this.style.background='transparent'">
                     <div>
                         <strong>{{u.user}}</strong>
                         <div style="font-size: 0.85em; color: var(--detail-label-color); margin-top: 4px;">Port: {{u.port or 'Default'}} | {{u.server_ip}}</div>
@@ -1362,7 +1420,6 @@ input:checked + .slider .toggle-text.on {
         </div>
     </div>
 
-    <!-- Manage Users Section -->
     <div id="manage" class="content-section">
         <div class="form-card">
             <h3 class="form-title"><i class="fas fa-users"></i> {{t.user_management}}</h3>
@@ -1377,7 +1434,6 @@ input:checked + .slider .toggle-text.on {
             </div>
         </div>
         
-        <!-- Desktop Table View -->
         <div class="table-container">
             <table id="userTable">
                 <thead>
@@ -1448,7 +1504,6 @@ input:checked + .slider .toggle-text.on {
             </table>
         </div>
         
-        <!-- FIXED: Mobile Card View -->
         <div class="mobile-user-list">
             {% for u in users %}
             <div class="user-card-mobile" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}">
@@ -1505,7 +1560,6 @@ input:checked + .slider .toggle-text.on {
         </div>
     </div>
 
-    <!-- Add User Section -->
     <div id="adduser" class="content-section">
         <form method="post" action="/add" class="form-card">
             <h3 class="form-title"><i class="fas fa-user-plus"></i> {{t.add_user}}</h3>
@@ -1562,7 +1616,6 @@ input:checked + .slider .toggle-text.on {
         </form>
     </div>
 
-    <!-- Bulk Operations Section -->
     <div id="bulk" class="content-section">
         <div class="form-card">
             <h3 class="form-title"><i class="fas fa-cogs"></i> {{t.bulk_ops}}</h3>
@@ -1588,7 +1641,6 @@ input:checked + .slider .toggle-text.on {
         </div>
     </div>
 
-    <!-- Reports Section -->
     <div id="reports" class="content-section">
         <div class="form-card">
             <h3 class="form-title"><i class="fas fa-chart-bar"></i> {{t.reports}}</h3>
@@ -1618,7 +1670,6 @@ input:checked + .slider .toggle-text.on {
     </div>
 </div>
 
-<!-- Bottom Navigation Bar -->
 <nav class="bottom-nav">
     <div class="nav-items">
         <a href="javascript:void(0)" class="nav-item active" data-section="home" onclick="showSection('home')">
@@ -1644,7 +1695,6 @@ input:checked + .slider .toggle-text.on {
     </div>
 </nav>
 
-<!-- Custom Modal for User Edit -->
 <div id="editUserModal" class="custom-modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -1674,7 +1724,6 @@ input:checked + .slider .toggle-text.on {
     </div>
 </div>
 
-<!-- Settings Modal -->
 <div id="settingsModal" class="custom-modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -1705,7 +1754,7 @@ input:checked + .slider .toggle-text.on {
         </div>
         
         <div id="languageContent" class="setting-group-content">
-             <div class="toggle-container">
+              <div class="toggle-container">
                 <span class="toggle-label"><i class="fas fa-language"></i> Language</span>
                 <label class="toggle-switch">
                     <input type="checkbox" id="langToggle" onchange="toggleLanguage(this.checked)">
@@ -1818,11 +1867,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const activeSection = document.querySelector('.content-section.active');
     if (activeSection) {
-         const sectionId = activeSection.id;
-         const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
-         if (navItem) {
-             navItem.classList.add('active');
-         }
+        const sectionId = activeSection.id;
+        const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+        if (navItem) {
+            navItem.classList.add('active');
+        }
     }
 });
 
@@ -1839,7 +1888,7 @@ function filterUsers() {
         row.style.display = shouldShow ? '' : 'none';
         
         if (detailRow) {
-             detailRow.style.display = shouldShow ? 'table-row' : 'none';
+            detailRow.style.display = shouldShow ? 'table-row' : 'none';
         }
     });
     
