@@ -60,7 +60,8 @@ TRANSLATIONS = {
         'save_login': 'Save Login (14 Days)',
         'hwid': 'HWID (Hardware ID)',
         'cpu': 'CPU Load', 'ram': 'RAM Usage', 'swap': 'Swap Usage', 'disk': 'Disk Used',
-        'vps_ip': 'VPS IP/Server IP', 'day_left': 'Days Left', 'expire_date': 'Expire Date'
+        'vps_ip': 'VPS IP/Server IP', 'day_left': 'Days Left', 'expire_date': 'Expire Date',
+        'alert_title': 'Notice', 'confirm_title': 'Confirmation', 'report_generating': 'Generating Report...'
     },
     'my': {
         'title': 'ZIVPN စီမံခန့်ခွဲမှု Panel', 'login_title': 'ZIVPN Panel ဝင်ရန်',
@@ -97,7 +98,8 @@ TRANSLATIONS = {
         'save_login': 'လော့ဂ်အင် အချက်အလက် သိမ်းမည် (၁၄ ရက်)',
         'hwid': 'HWID (ဟာ့ဒ်ဝဲလ် အမှတ်အသား)',
         'cpu': 'CPU ဝန်ပမာဏ', 'ram': 'RAM အသုံးပြုမှု', 'swap': 'Swap အသုံးပြုမှု', 'disk': 'Disk အသုံးပြုမှု',
-        'vps_ip': 'VPS IP/ဆာဗာ IP', 'day_left': 'ကျန်ရှိရက်', 'expire_date': 'သက်တမ်းကုန်ဆုံးရက်'
+        'vps_ip': 'VPS IP/ဆာဗာ IP', 'day_left': 'ကျန်ရှိရက်', 'expire_date': 'သက်တမ်းကုန်ဆုံးရက်',
+        'alert_title': 'သတိပေးချက်', 'confirm_title': 'အတည်ပြုချက်', 'report_generating': 'အစီရင်ခံစာ ထုတ်လုပ်နေသည်...'
     }
 }
 
@@ -119,8 +121,8 @@ ADMIN_USER = os.environ.get("WEB_ADMIN_USER","").strip()
 ADMIN_PASS = os.environ.get("WEB_ADMIN_PASSWORD","").strip()
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "/etc/zivpn/zivpn.db")
 
-# Permanent sessions (30 days)
-app.permanent_session_lifetime = timedelta(days=30)
+# Permanent sessions (14 days)
+app.permanent_session_lifetime = timedelta(days=14)
 
 # --- Database Migration Function ---
 
@@ -412,6 +414,9 @@ def login():
     html_template = load_html_template() 
     if not login_enabled(): return redirect(url_for('index'))
     
+    # NEW: Serialize translations dictionary to a JSON string for safe embedding in JS
+    translations_json = json.dumps(t, ensure_ascii=False)
+    
     if request.method=="POST":
         u=(request.form.get("u") or "").strip()
         p=(request.form.get("p") or "").strip()
@@ -430,7 +435,8 @@ def login():
     
     theme = session.get('theme', 'dark')
     return render_template_string(html_template, authed=False, logo=LOGO_URL, err=session.pop("login_err", None), 
-                                 t=t, lang=g.lang, theme=theme)
+                                 t=t, lang=g.lang, theme=theme,
+                                 translations_json_str=translations_json) # Pass to login view too
 
 @app.route("/logout", methods=["GET"])
 def logout():
@@ -446,9 +452,13 @@ def build_view(msg="", err=""):
         # Template load မရပါက အမှား message ပြသသည်။
         return f"<h1>Error: Cannot load Web Panel Template</h1><p>{e}</p>", 500
     
+    # NEW: Serialize translations dictionary to a JSON string for safe embedding in JS
+    translations_json = json.dumps(t, ensure_ascii=False)
+    
     if not require_login():
         return render_template_string(html_template, authed=False, logo=LOGO_URL, err=session.pop("login_err", None), 
-                                     t=t, lang=g.lang, theme=session.get('theme', 'dark'))
+                                     t=t, lang=g.lang, theme=session.get('theme', 'dark'),
+                                     translations_json_str=translations_json)
     
     # ဤနေရာမှ စတင်၍ Database မှ data များ ဆွဲယူသည်။
     try:
@@ -474,11 +484,11 @@ def build_view(msg="", err=""):
                 expires_dt = datetime.strptime(expires_str, "%Y-%m-%d").date()
                 delta = expires_dt - today_date
                 days_left = delta.days
-                days_left_text = f"{days_left} days"
+                days_left_text = f"{days_left} {t['day_left']}"
                 
                 if days_left < 0:
                     days_left_class = "value-status-bad" # Expired (Red)
-                    days_left_text = "Expired"
+                    days_left_text = t['expired']
                 elif days_left <= 7:
                     days_left_class = "value-status-expired" # Warning (Purple/Red tone)
                 elif days_left <= 30:
@@ -525,7 +535,8 @@ def build_view(msg="", err=""):
     return render_template_string(html_template, authed=True, logo=LOGO_URL, 
                                  users=view, msg=msg, err=err, today=today, stats=stats, 
                                  system_stats=system_stats_final, 
-                                 t=t, lang=g.lang, theme=theme)
+                                 t=t, lang=g.lang, theme=theme,
+                                 translations_json_str=translations_json) # Pass to main view
 
 @app.route("/", methods=["GET"])
 def index(): 
