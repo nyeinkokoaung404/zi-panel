@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-ZIVPN Enterprise Web Panel - Flask Backend (Refactored for Robustness and UX)
-- Database connection management ကို Flask context (g/teardown) သုံးပြီး ပိုမို ခိုင်မာစေပါသည်။
-- Days Left (ကျန်ရှိရက်) တွက်ချက်မှုနှင့် VPS IP ထည့်သွင်းမှုကို ပြုလုပ်ထားပါသည်။
-- User update နှင့် delete ကို API endpoints မှတဆင့် ကိုင်တွယ်ပါသည်။
-"""
 
 from flask import Flask, jsonify, render_template_string, request, redirect, url_for, session, make_response, g
 import json, re, subprocess, os, tempfile, hmac, sqlite3, datetime
