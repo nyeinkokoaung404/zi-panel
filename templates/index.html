@@ -2,7 +2,7 @@
 <html lang="{{lang}}">
 <head>
     <meta charset="utf-8">
-    <title>{{t.title}}</title>
+    <title>{{t.title}} - ZIVPN Enterprise</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta http-equiv="refresh" content="120">
     <!-- Fonts -->
@@ -1747,6 +1747,7 @@ input:checked + .slider .toggle-text.on {
 
 <script>
 // Parse Jinja translations for use in JS
+// FIX: Using JSON.parse with a safe, serialized JSON string to avoid Jinja/JS syntax conflicts.
 const translations = JSON.parse('{{translations_json_str|safe}}');
 let modalCallback = null; // Global variable to store callback function for confirmation
 
@@ -1765,7 +1766,7 @@ function showCustomModal(title, body, type, onConfirm) {
     if (type === 'confirm') {
         confirmBtn.style.display = 'inline-flex';
         confirmBtn.textContent = translations.execute;
-        cancelBtn.textContent = 'Cancel'; 
+        cancelBtn.textContent = 'Cancel'; // Use literal 'Cancel' for consistency, or pull from t
         modalCallback = onConfirm;
         confirmBtn.onclick = () => {
             closeModal('confirmOrAlertModal');
@@ -1812,7 +1813,7 @@ function showSection(sectionId) {
     }
 }
 
-// --- Settings Modal Functions (unchanged) ---
+// --- Settings Modal Functions ---
 function openSettings() {
     document.getElementById('settingsModal').classList.add('active');
     showSettingTab('theme');
@@ -1849,18 +1850,42 @@ function showSettingTab(tabName) {
     }
 }
 
-// --- Theme Functions (unchanged) ---
+// --- Theme Functions ---
 function toggleTheme(isChecked) {
     const theme = isChecked ? 'dark' : 'light';
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
 }
 
-// --- Language Functions (unchanged) ---
+// --- Language Functions ---
 function toggleLanguage(isChecked) {
     const lang = isChecked ? 'my' : 'en';
     window.location.href = '/set_lang?lang=' + lang;
 }
+
+// Initialize theme/nav from localStorage
+document.addEventListener('DOMContentLoaded', () => {
+    const storedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.setAttribute('data-theme', storedTheme);
+    
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.checked = (storedTheme === 'dark');
+    }
+    const langToggle = document.getElementById('langToggle');
+    if (langToggle) {
+        langToggle.checked = (document.documentElement.lang === 'my');
+    }
+
+    const activeSection = document.querySelector('.content-section.active');
+    if (activeSection) {
+          const sectionId = activeSection.id;
+          const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+          if (navItem) {
+              navItem.classList.add('active');
+          }
+    }
+});
 
 // --- User Management Functions ---
 function filterUsers() {
@@ -1888,35 +1913,25 @@ function filterUsers() {
     });
 }
 
-// REFACTORED: Delete user using API call
 function deleteUser(username) {
     const message = translations.delete_confirm.replace('{user}', username);
     handleConfirm(message, () => {
-        // Close the edit modal if deletion is initiated from there
-        closeModal('editUserModal');
-
-        const fetchUserApi = async () => {
-            try {
-                const response = await fetch('/api/user/delete', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({user: username})
-                });
-                const data = await response.json();
-
-                if (data.ok) {
-                    handleAlert(data.message);
-                    // Reload the page to reflect the deletion visually
-                    location.reload(); 
-                } else {
-                    handleAlert('Error: ' + (data.message || 'Unknown API error.'));
-                }
-            } catch (e) {
-                handleAlert('Error communicating with server: ' + e.message);
+        // Use fetch API to call the API endpoint for better UX (no full reload)
+        fetch('/api/user/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({user: username})
+        }).then(r => r.json()).then(data => {
+            handleAlert(data.message);
+            // Check for success before reloading
+            if (data.ok) {
+                // Close the edit modal if it's open
+                closeEditModal(); 
+                location.reload(); 
             }
-        };
-
-        fetchUserApi();
+        }).catch(e => {
+            handleAlert('Error deleting user: ' + e.message);
+        });
     });
 }
 
@@ -1935,7 +1950,6 @@ function closeEditModal() {
     closeModal('editUserModal');
 }
 
-// This function already uses the API and remains largely correct
 function submitEdit(event) {
     event.preventDefault();
     const user = document.getElementById('editOriginalUser').value;
@@ -1952,9 +1966,10 @@ function submitEdit(event) {
         body: JSON.stringify({user, password, hwid})
     }).then(r => r.json()).then(data => {
         handleAlert(data.message); 
-        closeEditModal();
-        // Reload page to update visible user details
-        location.reload();
+        if (data.ok) {
+            closeEditModal();
+            location.reload();
+        }
     }).catch(e => {
         handleAlert('Error updating user: ' + e.message);
     }).finally(() => {
@@ -1963,7 +1978,7 @@ function submitEdit(event) {
     });
 }
 
-// --- Bulk Action Function (unchanged) ---
+// --- Bulk Action Function ---
 function executeBulkAction() {
     const action = document.getElementById('bulkAction').value;
     const users = document.getElementById('bulkUsers').value;
@@ -1989,7 +2004,9 @@ function executeBulkAction() {
             body: JSON.stringify({action, users: users.split(',').map(u => u.trim()).filter(u => u)})
         }).then(r => r.json()).then(data => {
             handleAlert(data.message.replace('{action}', action)); 
-            location.reload();
+            if (data.ok) {
+                 location.reload();
+            }
         }).catch(e => {
             handleAlert('Error: ' + e.message);
         }).finally(() => {
@@ -1999,7 +2016,7 @@ function executeBulkAction() {
     });
 }
 
-// --- Report Generation Function (unchanged) ---
+// --- Report Generation Function ---
 function generateReport() {
     const from = document.getElementById('fromDate').value;
     const to = document.getElementById('toDate').value;
@@ -2050,7 +2067,7 @@ document.getElementById('searchUser')?.addEventListener('input', function() {
     filterUsers();
 });
 
-// Add keyboard shortcuts (unchanged)
+// Add keyboard shortcuts
 document.addEventListener('keydown', function(e) {
     if (e.ctrlKey || e.metaKey) {
         switch(e.key) {
