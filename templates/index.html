@@ -2,7 +2,7 @@
 <html lang="{{lang}}">
 <head>
     <meta charset="utf-8">
-    <title>{{t.title}} - ZIVPN Enterprise</title>
+    <title>{{t.title}}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta http-equiv="refresh" content="120">
     <!-- Fonts -->
@@ -422,7 +422,7 @@ html,body{
 .nav-icon {
     font-size: 1.3em;
     margin-bottom: 6px;
-    opacity: 0.9;
+    transition: var(--transition);
 }
 
 .nav-item.active .nav-icon {
@@ -884,7 +884,7 @@ tr:hover {
 
 .value-status-ok { color: var(--ok); }
 .value-status-expired { color: var(--delete-btn); }
-.value-status-bad { color: var(--delete-btn); } /* Used for critical/expiring soon */
+.value-status-bad { color: var(--delete-btn); }
 .value-status-unknown { color: var(--unknown); }
 
 /* Toggle Switch */
@@ -1296,50 +1296,50 @@ input:checked + .slider .toggle-text.on {
             </div>
         </div>
 
-        <!-- System Stats - UPDATED to use percent data -->
+        <!-- System Stats -->
         <div class="form-card">
             <h3 class="form-title"><i class="fas fa-server"></i> {{t.server_info}}</h3>
             <div class="system-stats-grid">
                  <div class="stat-card" style="padding:20px;">
-                     <div class="stat-icon" style="color: #6366f1;">
-                         <i class="fas fa-microchip"></i>
-                     </div>
-                     <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.cpu_load }}</div>
-                     <div class="stat-label">{{t.cpu}} (1 min)</div>
-                     <div class="progress-bar">
-                         <div class="progress-fill progress-cpu" style="width: {{ system_stats.cpu_percent }}%"></div>
-                     </div>
-                 </div>
-                 <div class="stat-card" style="padding:20px;">
-                     <div class="stat-icon" style="color: #f43f5e;">
-                         <i class="fas fa-memory"></i>
-                     </div>
-                     <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.ram_used }}</div>
-                     <div class="stat-label">{{t.ram}}</div>
-                     <div class="progress-bar">
-                         <div class="progress-fill progress-ram" style="width: {{ system_stats.ram_percent }}%"></div>
-                     </div>
-                 </div>
-                 <div class="stat-card" style="padding:20px;">
-                     <div class="stat-icon" style="color: #06b6d4;">
-                         <i class="fas fa-exchange-alt"></i>
-                     </div>
-                     <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.swap_used }}</div>
-                     <div class="stat-label">{{t.swap}}</div>
-                     <div class="progress-bar">
-                         <div class="progress-fill progress-swap" style="width: {{ system_stats.swap_percent }}%"></div>
-                     </div>
-                 </div>
-                 <div class="stat-card" style="padding:20px;">
-                     <div class="stat-icon" style="color: #fbbf24;">
-                         <i class="fas fa-hdd"></i>
-                     </div>
-                     <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.disk_used }}</div>
-                     <div class="stat-label">{{t.disk}}</div>
-                     <div class="progress-bar">
-                         <div class="progress-fill progress-disk" style="width: {{ system_stats.disk_percent }}%"></div>
-                     </div>
-                 </div>
+                    <div class="stat-icon" style="color: #6366f1;">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.cpu_load }}</div>
+                    <div class="stat-label">{{t.cpu}} (1 min)</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-cpu" style="width: {{ system_stats.cpu_percent }}%"></div>
+                    </div>
+                </div>
+                <div class="stat-card" style="padding:20px;">
+                    <div class="stat-icon" style="color: #f43f5e;">
+                        <i class="fas fa-memory"></i>
+                    </div>
+                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.ram_used }}</div>
+                    <div class="stat-label">{{t.ram}}</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-ram" style="width: {{ system_stats.ram_percent }}%"></div>
+                    </div>
+                </div>
+                <div class="stat-card" style="padding:20px;">
+                    <div class="stat-icon" style="color: #06b6d4;">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.swap_used }}</div>
+                    <div class="stat-label">{{t.swap}}</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-swap" style="width: {{ system_stats.swap_percent }}%"></div>
+                    </div>
+                </div>
+                <div class="stat-card" style="padding:20px;">
+                    <div class="stat-icon" style="color: #fbbf24;">
+                        <i class="fas fa-hdd"></i>
+                    </div>
+                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.disk_used }}</div>
+                    <div class="stat-label">{{t.disk}}</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-disk" style="width: {{ system_stats.disk_percent }}%"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1372,7 +1372,7 @@ input:checked + .slider .toggle-text.on {
                     <input type="text" id="searchUser" placeholder="{{t.user_search}}" style="flex: 1;">
                 </div>
                 <button class="btn btn-primary" onclick="filterUsers()">
-                    <i class="fas fa-search"></i> {{t.search}}
+                    <i class="fas fa-search"></i> Search
                 </button>
             </div>
         </div>
@@ -1448,7 +1448,7 @@ input:checked + .slider .toggle-text.on {
             </table>
         </div>
         
-        <!-- FIXED: Mobile Card View - UPDATED to use Days Left data -->
+        <!-- FIXED: Mobile Card View -->
         <div class="mobile-user-list">
             {% for u in users %}
             <div class="user-card-mobile" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}">
@@ -1697,8 +1697,8 @@ input:checked + .slider .toggle-text.on {
                 <label class="toggle-switch">
                     <input type="checkbox" id="themeToggle" onchange="toggleTheme(this.checked)">
                     <span class="slider">
-                        <span class="toggle-text on"></span>
-                        <span class="toggle-text off"></span>
+                        <span class="toggle-text on">DARK</span>
+                        <span class="toggle-text off">LIGHT</span>
                     </span>
                 </label>
             </div>
@@ -1728,74 +1728,13 @@ input:checked + .slider .toggle-text.on {
     </div>
 </div>
 
-<!-- Custom Alert/Confirm Modal for JS prompts -->
-<div id="confirmOrAlertModal" class="custom-modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="modalTitle"><i class="fas fa-exclamation-triangle"></i> {{t.alert_title}}</h3>
-            <button class="close-modal" onclick="closeModal('confirmOrAlertModal')">&times;</button>
-        </div>
-        <p id="modalBody" style="margin-bottom: 25px;"></p>
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button id="modalCancelBtn" class="btn" style="background: var(--bd); color: var(--fg);" onclick="closeModal('confirmOrAlertModal')">Cancel</button>
-            <button id="modalConfirmBtn" class="btn btn-primary">{{t.execute}}</button>
-        </div>
-    </div>
-</div>
-
 {% endif %}
 
 <script>
 // Parse Jinja translations for use in JS
-// FIX: Using JSON.parse with a safe, serialized JSON string to avoid Jinja/JS syntax conflicts.
-const translations = JSON.parse('{{translations_json_str|safe}}');
-let modalCallback = null; // Global variable to store callback function for confirmation
+const translations = {{t|tojson}};
 
-// --- Modal Functions (Replacing alert/confirm) ---
-
-function showCustomModal(title, body, type, onConfirm) {
-    const modal = document.getElementById('confirmOrAlertModal');
-    document.getElementById('modalTitle').innerHTML = (type === 'confirm' ? 
-        `<i class="fas fa-question-circle"></i> ${title}` : 
-        `<i class="fas fa-exclamation-triangle"></i> ${title}`);
-    document.getElementById('modalBody').textContent = body;
-
-    const confirmBtn = document.getElementById('modalConfirmBtn');
-    const cancelBtn = document.getElementById('modalCancelBtn');
-
-    if (type === 'confirm') {
-        confirmBtn.style.display = 'inline-flex';
-        confirmBtn.textContent = translations.execute;
-        cancelBtn.textContent = 'Cancel'; // Use literal 'Cancel' for consistency, or pull from t
-        modalCallback = onConfirm;
-        confirmBtn.onclick = () => {
-            closeModal('confirmOrAlertModal');
-            if (modalCallback) modalCallback();
-        };
-        cancelBtn.onclick = () => { closeModal('confirmOrAlertModal'); };
-    } else {
-        confirmBtn.style.display = 'none';
-        cancelBtn.textContent = 'OK';
-        cancelBtn.onclick = () => { closeModal('confirmOrAlertModal'); };
-    }
-
-    modal.classList.add('active');
-}
-
-function handleAlert(message) {
-    showCustomModal(translations.alert_title, message, 'alert', null);
-}
-
-function handleConfirm(message, callback) {
-    showCustomModal(translations.confirm_title, message, 'confirm', callback);
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('active');
-    modalCallback = null;
-}
-
-// --- Navigation Functions ---
+// Navigation Functions
 function showSection(sectionId) {
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
@@ -1813,7 +1752,7 @@ function showSection(sectionId) {
     }
 }
 
-// --- Settings Modal Functions ---
+// Settings Modal Functions
 function openSettings() {
     document.getElementById('settingsModal').classList.add('active');
     showSettingTab('theme');
@@ -1826,8 +1765,8 @@ function openSettings() {
 }
 
 function closeSettings() {
-    closeModal('settingsModal');
-    closeModal('editUserModal');
+    document.getElementById('settingsModal').classList.remove('active');
+    document.getElementById('editUserModal').classList.remove('active'); 
 }
 
 function showSettingTab(tabName) {
@@ -1850,14 +1789,14 @@ function showSettingTab(tabName) {
     }
 }
 
-// --- Theme Functions ---
+// Theme Functions
 function toggleTheme(isChecked) {
     const theme = isChecked ? 'dark' : 'light';
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
 }
 
-// --- Language Functions ---
+// Language Functions
 function toggleLanguage(isChecked) {
     const lang = isChecked ? 'my' : 'en';
     window.location.href = '/set_lang?lang=' + lang;
@@ -1879,15 +1818,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const activeSection = document.querySelector('.content-section.active');
     if (activeSection) {
-          const sectionId = activeSection.id;
-          const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
-          if (navItem) {
-              navItem.classList.add('active');
-          }
+         const sectionId = activeSection.id;
+         const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+         if (navItem) {
+             navItem.classList.add('active');
+         }
     }
 });
 
-// --- User Management Functions ---
+// User Management Functions
 function filterUsers() {
     const search = document.getElementById('searchUser').value.toLowerCase();
     
@@ -1900,7 +1839,7 @@ function filterUsers() {
         row.style.display = shouldShow ? '' : 'none';
         
         if (detailRow) {
-            detailRow.style.display = shouldShow ? 'table-row' : 'none';
+             detailRow.style.display = shouldShow ? 'table-row' : 'none';
         }
     });
     
@@ -1914,40 +1853,34 @@ function filterUsers() {
 }
 
 function deleteUser(username) {
-    const message = translations.delete_confirm.replace('{user}', username);
-    handleConfirm(message, () => {
-        // Use fetch API to call the API endpoint for better UX (no full reload)
-        fetch('/api/user/delete', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({user: username})
-        }).then(r => r.json()).then(data => {
-            handleAlert(data.message);
-            // Check for success before reloading
-            if (data.ok) {
-                // Close the edit modal if it's open
-                closeEditModal(); 
-                location.reload(); 
-            }
-        }).catch(e => {
-            handleAlert('Error deleting user: ' + e.message);
-        });
-    });
+    if (confirm(translations.delete_confirm.replace('{user}', username))) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/delete';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'user';
+        input.value = username;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
-// --- Edit Modal Functions ---
+// Edit Modal Functions
 function openEditModal(username, password, hwid) {
     document.getElementById('editUsername').textContent = username;
     document.getElementById('editOriginalUser').value = username;
     document.getElementById('editPassword').value = password;
-    // Handle 'None', 'null', or '-' from Jinja as empty string
     document.getElementById('editHWID').value = (hwid === 'None' || hwid === 'null' || hwid === '-') ? '' : hwid;
 
     document.getElementById('editUserModal').classList.add('active');
 }
 
 function closeEditModal() {
-    closeModal('editUserModal');
+    document.getElementById('editUserModal').classList.remove('active');
 }
 
 function submitEdit(event) {
@@ -1955,68 +1888,45 @@ function submitEdit(event) {
     const user = document.getElementById('editOriginalUser').value;
     const password = document.getElementById('editPassword').value;
     const hwid = document.getElementById('editHWID').value;
-    const saveBtn = event.target.querySelector('.btn-primary');
-    
-    saveBtn.innerHTML = '<span class="spinner"></span> Saving...';
-    saveBtn.disabled = true;
 
     fetch('/api/user/update', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({user, password, hwid})
     }).then(r => r.json()).then(data => {
-        handleAlert(data.message); 
-        if (data.ok) {
-            closeEditModal();
-            location.reload();
-        }
+        alert(data.message); 
+        closeEditModal();
+        location.reload();
     }).catch(e => {
-        handleAlert('Error updating user: ' + e.message);
-    }).finally(() => {
-        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
-        saveBtn.disabled = false;
+        alert('Error updating user: ' + e.message);
     });
 }
 
-// --- Bulk Action Function ---
+// Bulk Action Function
 function executeBulkAction() {
     const action = document.getElementById('bulkAction').value;
     const users = document.getElementById('bulkUsers').value;
     
     if (!action || !users) { 
-        handleAlert(translations.select_action + ' / ' + translations.user + ' လိုအပ်သည်'); 
+        alert(translations.select_action + ' / ' + translations.user + ' လိုအပ်သည်'); 
         return; 
     }
 
-    let message = `Are you sure you want to perform "${action}" on users: ${users}?`;
-    if (action === 'delete') {
-        message = translations.delete_users + ' ' + users + ' ကို ဖျက်ရန် သေချာပါသလား?';
-    }
-
-    handleConfirm(message, () => {
-        const executeBtn = document.querySelector('#bulk .btn-primary');
-        executeBtn.innerHTML = '<span class="spinner"></span> Executing...';
-        executeBtn.disabled = true;
-
-        fetch('/api/bulk', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({action, users: users.split(',').map(u => u.trim()).filter(u => u)})
-        }).then(r => r.json()).then(data => {
-            handleAlert(data.message.replace('{action}', action)); 
-            if (data.ok) {
-                 location.reload();
-            }
-        }).catch(e => {
-            handleAlert('Error: ' + e.message);
-        }).finally(() => {
-            executeBtn.innerHTML = '<i class="fas fa-play"></i> ' + translations.execute;
-            executeBtn.disabled = false;
-        });
+    if (action === 'delete' && !confirm(translations.delete_users + ' ' + users + ' ကို ဖျက်ရန် သေချာပါသလား?')) return;
+    
+    fetch('/api/bulk', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action, users: users.split(',').map(u => u.trim()).filter(u => u)})
+    }).then(r => r.json()).then(data => {
+        alert(data.message.replace('{action}', action)); 
+        location.reload();
+    }).catch(e => {
+        alert('Error: ' + e.message);
     });
 }
 
-// --- Report Generation Function ---
+// Report Generation Function
 function generateReport() {
     const from = document.getElementById('fromDate').value;
     const to = document.getElementById('toDate').value;
@@ -2024,11 +1934,11 @@ function generateReport() {
     const reportResults = document.getElementById('reportResults');
 
     if (!from || !to) {
-        handleAlert(translations.report_range);
+        alert(translations.report_range);
         return;
     }
 
-    reportResults.innerHTML = `<div class="form-card" style="text-align: center; padding: 30px;"><i class="fas fa-spinner fa-spin"></i> ${translations.report_generating}</div>`;
+    reportResults.innerHTML = '<div class="form-card" style="text-align: center; padding: 30px;"><i class="fas fa-spinner fa-spin"></i> Generating Report...</div>';
 
     fetch(`/api/reports?from=${from}&to=${to}&type=${type}`)
         .then(r => r.json())
@@ -2049,16 +1959,12 @@ function generateReport() {
 window.onclick = function(event) {
     const settingsModal = document.getElementById('settingsModal');
     const editModal = document.getElementById('editUserModal');
-    const confirmModal = document.getElementById('confirmOrAlertModal');
     
     if (event.target === settingsModal) {
-        closeModal('settingsModal');
+        closeSettings();
     }
     if (event.target === editModal) {
-        closeModal('editUserModal');
-    }
-    if (event.target === confirmModal) {
-        closeModal('confirmOrAlertModal');
+        closeEditModal();
     }
 }
 
