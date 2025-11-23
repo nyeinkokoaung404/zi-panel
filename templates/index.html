@@ -2,7 +2,7 @@
 <html lang="{{lang}}">
 <head>
     <meta charset="utf-8">
-    <title>{{t.title}} - ZIVPN Enterprise</title>
+    <title>{{t.title}}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta http-equiv="refresh" content="120">
     <!-- Fonts -->
@@ -422,7 +422,7 @@ html,body{
 .nav-icon {
     font-size: 1.3em;
     margin-bottom: 6px;
-    transition: var(--transition);
+    opacity: 0.9;
 }
 
 .nav-item.active .nav-icon {
@@ -884,7 +884,7 @@ tr:hover {
 
 .value-status-ok { color: var(--ok); }
 .value-status-expired { color: var(--delete-btn); }
-.value-status-bad { color: var(--delete-btn); }
+.value-status-bad { color: var(--delete-btn); } /* Used for critical/expiring soon */
 .value-status-unknown { color: var(--unknown); }
 
 /* Toggle Switch */
@@ -989,7 +989,7 @@ input:checked + .slider .toggle-text.on {
         padding: 20px;
     }
     
-    /* FIXED: Mobile User Card Layout - ALL DETAILS VISIBLE */
+    /* FIXED: Mobile User Card Layout */
     .user-card-mobile {
         background: var(--card);
         border-radius: var(--radius-lg);
@@ -999,7 +999,7 @@ input:checked + .slider .toggle-text.on {
         border: 1px solid var(--bd);
         transition: var(--transition);
         
-        /* Improved layout for better mobile display */
+        /* Improved grid layout for better mobile display */
         display: flex;
         flex-direction: column;
         gap: 15px;
@@ -1045,10 +1045,9 @@ input:checked + .slider .toggle-text.on {
     
     .user-card-details {
         margin-top: 0;
-        width: 100%;
     }
     
-    /* FIXED: Mobile Detail Card Layout - ALL FIELDS VISIBLE */
+    /* FIXED: Mobile Detail Card Layout */
     .user-card-details .user-detail-card {
         background: var(--bg);
         border-radius: var(--radius);
@@ -1079,9 +1078,6 @@ input:checked + .slider .toggle-text.on {
         font-weight: 500;
         font-size: 0.9em;
         flex: 1;
-        display: flex;
-        align-items: center;
-        gap: 8px;
     }
 
     .user-card-details .user-detail-value {
@@ -1300,50 +1296,50 @@ input:checked + .slider .toggle-text.on {
             </div>
         </div>
 
-        <!-- System Stats -->
+        <!-- System Stats - UPDATED to use percent data -->
         <div class="form-card">
             <h3 class="form-title"><i class="fas fa-server"></i> {{t.server_info}}</h3>
             <div class="system-stats-grid">
                  <div class="stat-card" style="padding:20px;">
-                    <div class="stat-icon" style="color: #6366f1;">
-                        <i class="fas fa-microchip"></i>
-                    </div>
-                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.cpu_load }}</div>
-                    <div class="stat-label">{{t.cpu}} (1 min)</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill progress-cpu" style="width: {{ system_stats.cpu_percent }}%"></div>
-                    </div>
-                </div>
-                <div class="stat-card" style="padding:20px;">
-                    <div class="stat-icon" style="color: #f43f5e;">
-                        <i class="fas fa-memory"></i>
-                    </div>
-                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.ram_used }}</div>
-                    <div class="stat-label">{{t.ram}}</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill progress-ram" style="width: {{ system_stats.ram_percent }}%"></div>
-                    </div>
-                </div>
-                <div class="stat-card" style="padding:20px;">
-                    <div class="stat-icon" style="color: #06b6d4;">
-                        <i class="fas fa-exchange-alt"></i>
-                    </div>
-                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.swap_used }}</div>
-                    <div class="stat-label">{{t.swap}}</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill progress-swap" style="width: {{ system_stats.swap_percent }}%"></div>
-                    </div>
-                </div>
-                <div class="stat-card" style="padding:20px;">
-                    <div class="stat-icon" style="color: #fbbf24;">
-                        <i class="fas fa-hdd"></i>
-                    </div>
-                    <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.disk_used }}</div>
-                    <div class="stat-label">{{t.disk}}</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill progress-disk" style="width: {{ system_stats.disk_percent }}%"></div>
-                    </div>
-                </div>
+                     <div class="stat-icon" style="color: #6366f1;">
+                         <i class="fas fa-microchip"></i>
+                     </div>
+                     <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.cpu_load }}</div>
+                     <div class="stat-label">{{t.cpu}} (1 min)</div>
+                     <div class="progress-bar">
+                         <div class="progress-fill progress-cpu" style="width: {{ system_stats.cpu_percent }}%"></div>
+                     </div>
+                 </div>
+                 <div class="stat-card" style="padding:20px;">
+                     <div class="stat-icon" style="color: #f43f5e;">
+                         <i class="fas fa-memory"></i>
+                     </div>
+                     <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.ram_used }}</div>
+                     <div class="stat-label">{{t.ram}}</div>
+                     <div class="progress-bar">
+                         <div class="progress-fill progress-ram" style="width: {{ system_stats.ram_percent }}%"></div>
+                     </div>
+                 </div>
+                 <div class="stat-card" style="padding:20px;">
+                     <div class="stat-icon" style="color: #06b6d4;">
+                         <i class="fas fa-exchange-alt"></i>
+                     </div>
+                     <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.swap_used }}</div>
+                     <div class="stat-label">{{t.swap}}</div>
+                     <div class="progress-bar">
+                         <div class="progress-fill progress-swap" style="width: {{ system_stats.swap_percent }}%"></div>
+                     </div>
+                 </div>
+                 <div class="stat-card" style="padding:20px;">
+                     <div class="stat-icon" style="color: #fbbf24;">
+                         <i class="fas fa-hdd"></i>
+                     </div>
+                     <div class="stat-number" style="font-size: 1.6em; margin: 0;">{{ system_stats.disk_used }}</div>
+                     <div class="stat-label">{{t.disk}}</div>
+                     <div class="progress-bar">
+                         <div class="progress-fill progress-disk" style="width: {{ system_stats.disk_percent }}%"></div>
+                     </div>
+                 </div>
             </div>
         </div>
 
@@ -1376,7 +1372,7 @@ input:checked + .slider .toggle-text.on {
                     <input type="text" id="searchUser" placeholder="{{t.user_search}}" style="flex: 1;">
                 </div>
                 <button class="btn btn-primary" onclick="filterUsers()">
-                    <i class="fas fa-search"></i> Search
+                    <i class="fas fa-search"></i> {{t.search}}
                 </button>
             </div>
         </div>
@@ -1413,7 +1409,6 @@ input:checked + .slider .toggle-text.on {
                         </div>
                     </td>
                 </tr>
-                <!-- FIXED: Detail Row with ALL User Information -->
                 <tr class="detail-row" id="detail-row-{{loop.index0}}" style="display:table-row;">
                     <td colspan="5" style="padding-top: 8px; padding-bottom: 20px; border-bottom: 2px solid var(--bd);">
                         <div class="user-detail-card">
@@ -1453,7 +1448,7 @@ input:checked + .slider .toggle-text.on {
             </table>
         </div>
         
-        <!-- FIXED: Mobile Card View with ALL User Details -->
+        <!-- FIXED: Mobile Card View - UPDATED to use Days Left data -->
         <div class="mobile-user-list">
             {% for u in users %}
             <div class="user-card-mobile" data-user="{{u.user}}" data-hwid="{{u.hwid}}" data-index="{{loop.index0}}">
@@ -1468,31 +1463,30 @@ input:checked + .slider .toggle-text.on {
                     <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
                 </div>
                 
-                <!-- FIXED: ALL User Details Visible in Mobile View -->
                 <div class="user-card-details">
                     <div class="user-detail-card">
                         <div class="user-detail-row">
-                            <span class="user-detail-label"><i class="fas fa-server"></i> {{t.vps_ip}}</span>
+                            <span class="user-detail-label">{{t.vps_ip}}</span>
                             <span class="user-detail-value">{{u.server_ip}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label"><i class="fas fa-lock"></i> {{t.password}}</span>
+                            <span class="user-detail-label">{{t.password}}</span>
                             <span class="user-detail-value">{{u.password}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label"><i class="fas fa-fingerprint"></i> {{t.hwid}}</span>
+                            <span class="user-detail-label">{{t.hwid}}</span>
                             <span class="user-detail-value">{{u.hwid or 'N/A'}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label"><i class="fas fa-clock"></i> {{t.day_left}}</span>
+                            <span class="user-detail-label">{{t.day_left}}</span>
                             <span class="user-detail-value {{u.days_left_class}}">{{u.days_left}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label"><i class="fas fa-calendar-alt"></i> {{t.expire_date}}</span>
+                            <span class="user-detail-label">{{t.expire_date}}</span>
                             <span class="user-detail-value">{{u.expires or 'N/A'}}</span>
                         </div>
                         <div class="user-detail-row">
-                            <span class="user-detail-label"><i class="fas fa-link"></i> {{t.max_conn}}</span>
+                            <span class="user-detail-label">{{t.max_conn}}</span>
                             <span class="user-detail-value">{{u.concurrent_conn}}</span>
                         </div>
                     </div>
@@ -1703,8 +1697,8 @@ input:checked + .slider .toggle-text.on {
                 <label class="toggle-switch">
                     <input type="checkbox" id="themeToggle" onchange="toggleTheme(this.checked)">
                     <span class="slider">
-                        <span class="toggle-text on">DARK</span>
-                        <span class="toggle-text off">LIGHT</span>
+                        <span class="toggle-text on"></span>
+                        <span class="toggle-text off"></span>
                     </span>
                 </label>
             </div>
@@ -1734,13 +1728,74 @@ input:checked + .slider .toggle-text.on {
     </div>
 </div>
 
+<!-- Custom Alert/Confirm Modal for JS prompts -->
+<div id="confirmOrAlertModal" class="custom-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle"><i class="fas fa-exclamation-triangle"></i> {{t.alert_title}}</h3>
+            <button class="close-modal" onclick="closeModal('confirmOrAlertModal')">&times;</button>
+        </div>
+        <p id="modalBody" style="margin-bottom: 25px;"></p>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button id="modalCancelBtn" class="btn" style="background: var(--bd); color: var(--fg);" onclick="closeModal('confirmOrAlertModal')">Cancel</button>
+            <button id="modalConfirmBtn" class="btn btn-primary">{{t.execute}}</button>
+        </div>
+    </div>
+</div>
+
 {% endif %}
 
 <script>
 // Parse Jinja translations for use in JS
-const translations = {{t|tojson}};
+// FIX: Using JSON.parse with a safe, serialized JSON string to avoid Jinja/JS syntax conflicts.
+const translations = JSON.parse('{{translations_json_str|safe}}');
+let modalCallback = null; // Global variable to store callback function for confirmation
 
-// Navigation Functions
+// --- Modal Functions (Replacing alert/confirm) ---
+
+function showCustomModal(title, body, type, onConfirm) {
+    const modal = document.getElementById('confirmOrAlertModal');
+    document.getElementById('modalTitle').innerHTML = (type === 'confirm' ? 
+        `<i class="fas fa-question-circle"></i> ${title}` : 
+        `<i class="fas fa-exclamation-triangle"></i> ${title}`);
+    document.getElementById('modalBody').textContent = body;
+
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+
+    if (type === 'confirm') {
+        confirmBtn.style.display = 'inline-flex';
+        confirmBtn.textContent = translations.execute;
+        cancelBtn.textContent = 'Cancel'; // Use literal 'Cancel' for consistency, or pull from t
+        modalCallback = onConfirm;
+        confirmBtn.onclick = () => {
+            closeModal('confirmOrAlertModal');
+            if (modalCallback) modalCallback();
+        };
+        cancelBtn.onclick = () => { closeModal('confirmOrAlertModal'); };
+    } else {
+        confirmBtn.style.display = 'none';
+        cancelBtn.textContent = 'OK';
+        cancelBtn.onclick = () => { closeModal('confirmOrAlertModal'); };
+    }
+
+    modal.classList.add('active');
+}
+
+function handleAlert(message) {
+    showCustomModal(translations.alert_title, message, 'alert', null);
+}
+
+function handleConfirm(message, callback) {
+    showCustomModal(translations.confirm_title, message, 'confirm', callback);
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+    modalCallback = null;
+}
+
+// --- Navigation Functions ---
 function showSection(sectionId) {
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
@@ -1758,7 +1813,7 @@ function showSection(sectionId) {
     }
 }
 
-// Settings Modal Functions
+// --- Settings Modal Functions ---
 function openSettings() {
     document.getElementById('settingsModal').classList.add('active');
     showSettingTab('theme');
@@ -1771,8 +1826,8 @@ function openSettings() {
 }
 
 function closeSettings() {
-    document.getElementById('settingsModal').classList.remove('active');
-    document.getElementById('editUserModal').classList.remove('active'); 
+    closeModal('settingsModal');
+    closeModal('editUserModal');
 }
 
 function showSettingTab(tabName) {
@@ -1795,14 +1850,14 @@ function showSettingTab(tabName) {
     }
 }
 
-// Theme Functions
+// --- Theme Functions ---
 function toggleTheme(isChecked) {
     const theme = isChecked ? 'dark' : 'light';
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
 }
 
-// Language Functions
+// --- Language Functions ---
 function toggleLanguage(isChecked) {
     const lang = isChecked ? 'my' : 'en';
     window.location.href = '/set_lang?lang=' + lang;
@@ -1824,15 +1879,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const activeSection = document.querySelector('.content-section.active');
     if (activeSection) {
-         const sectionId = activeSection.id;
-         const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
-         if (navItem) {
-             navItem.classList.add('active');
-         }
+          const sectionId = activeSection.id;
+          const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+          if (navItem) {
+              navItem.classList.add('active');
+          }
     }
 });
 
-// User Management Functions
+// --- User Management Functions ---
 function filterUsers() {
     const search = document.getElementById('searchUser').value.toLowerCase();
     
@@ -1845,7 +1900,7 @@ function filterUsers() {
         row.style.display = shouldShow ? '' : 'none';
         
         if (detailRow) {
-             detailRow.style.display = shouldShow ? 'table-row' : 'none';
+            detailRow.style.display = shouldShow ? 'table-row' : 'none';
         }
     });
     
@@ -1859,7 +1914,8 @@ function filterUsers() {
 }
 
 function deleteUser(username) {
-    if (confirm(translations.delete_confirm.replace('{user}', username))) {
+    const message = translations.delete_confirm.replace('{user}', username);
+    handleConfirm(message, () => {
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/delete';
@@ -1872,21 +1928,22 @@ function deleteUser(username) {
         form.appendChild(input);
         document.body.appendChild(form);
         form.submit();
-    }
+    });
 }
 
-// Edit Modal Functions
+// --- Edit Modal Functions ---
 function openEditModal(username, password, hwid) {
     document.getElementById('editUsername').textContent = username;
     document.getElementById('editOriginalUser').value = username;
     document.getElementById('editPassword').value = password;
+    // Handle 'None', 'null', or '-' from Jinja as empty string
     document.getElementById('editHWID').value = (hwid === 'None' || hwid === 'null' || hwid === '-') ? '' : hwid;
 
     document.getElementById('editUserModal').classList.add('active');
 }
 
 function closeEditModal() {
-    document.getElementById('editUserModal').classList.remove('active');
+    closeModal('editUserModal');
 }
 
 function submitEdit(event) {
@@ -1894,45 +1951,64 @@ function submitEdit(event) {
     const user = document.getElementById('editOriginalUser').value;
     const password = document.getElementById('editPassword').value;
     const hwid = document.getElementById('editHWID').value;
+    const saveBtn = event.target.querySelector('.btn-primary');
+    
+    saveBtn.innerHTML = '<span class="spinner"></span> Saving...';
+    saveBtn.disabled = true;
 
     fetch('/api/user/update', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({user, password, hwid})
     }).then(r => r.json()).then(data => {
-        alert(data.message); 
+        handleAlert(data.message); 
         closeEditModal();
         location.reload();
     }).catch(e => {
-        alert('Error updating user: ' + e.message);
+        handleAlert('Error updating user: ' + e.message);
+    }).finally(() => {
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+        saveBtn.disabled = false;
     });
 }
 
-// Bulk Action Function
+// --- Bulk Action Function ---
 function executeBulkAction() {
     const action = document.getElementById('bulkAction').value;
     const users = document.getElementById('bulkUsers').value;
     
     if (!action || !users) { 
-        alert(translations.select_action + ' / ' + translations.user + ' လိုအပ်သည်'); 
+        handleAlert(translations.select_action + ' / ' + translations.user + ' လိုအပ်သည်'); 
         return; 
     }
 
-    if (action === 'delete' && !confirm(translations.delete_users + ' ' + users + ' ကို ဖျက်ရန် သေချာပါသလား?')) return;
-    
-    fetch('/api/bulk', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({action, users: users.split(',').map(u => u.trim()).filter(u => u)})
-    }).then(r => r.json()).then(data => {
-        alert(data.message.replace('{action}', action)); 
-        location.reload();
-    }).catch(e => {
-        alert('Error: ' + e.message);
+    let message = `Are you sure you want to perform "${action}" on users: ${users}?`;
+    if (action === 'delete') {
+        message = translations.delete_users + ' ' + users + ' ကို ဖျက်ရန် သေချာပါသလား?';
+    }
+
+    handleConfirm(message, () => {
+        const executeBtn = document.querySelector('#bulk .btn-primary');
+        executeBtn.innerHTML = '<span class="spinner"></span> Executing...';
+        executeBtn.disabled = true;
+
+        fetch('/api/bulk', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action, users: users.split(',').map(u => u.trim()).filter(u => u)})
+        }).then(r => r.json()).then(data => {
+            handleAlert(data.message.replace('{action}', action)); 
+            location.reload();
+        }).catch(e => {
+            handleAlert('Error: ' + e.message);
+        }).finally(() => {
+            executeBtn.innerHTML = '<i class="fas fa-play"></i> ' + translations.execute;
+            executeBtn.disabled = false;
+        });
     });
 }
 
-// Report Generation Function
+// --- Report Generation Function ---
 function generateReport() {
     const from = document.getElementById('fromDate').value;
     const to = document.getElementById('toDate').value;
@@ -1940,11 +2016,11 @@ function generateReport() {
     const reportResults = document.getElementById('reportResults');
 
     if (!from || !to) {
-        alert(translations.report_range);
+        handleAlert(translations.report_range);
         return;
     }
 
-    reportResults.innerHTML = '<div class="form-card" style="text-align: center; padding: 30px;"><i class="fas fa-spinner fa-spin"></i> Generating Report...</div>';
+    reportResults.innerHTML = `<div class="form-card" style="text-align: center; padding: 30px;"><i class="fas fa-spinner fa-spin"></i> ${translations.report_generating}</div>`;
 
     fetch(`/api/reports?from=${from}&to=${to}&type=${type}`)
         .then(r => r.json())
@@ -1965,12 +2041,16 @@ function generateReport() {
 window.onclick = function(event) {
     const settingsModal = document.getElementById('settingsModal');
     const editModal = document.getElementById('editUserModal');
+    const confirmModal = document.getElementById('confirmOrAlertModal');
     
     if (event.target === settingsModal) {
-        closeSettings();
+        closeModal('settingsModal');
     }
     if (event.target === editModal) {
-        closeEditModal();
+        closeModal('editUserModal');
+    }
+    if (event.target === confirmModal) {
+        closeModal('confirmOrAlertModal');
     }
 }
 
