@@ -80,11 +80,16 @@ PRIMARY_URL="https://github.com/zahidbd2/udp-zivpn/releases/download/udp-zivpn_1
 FALLBACK_URL="https://github.com/zahidbd2/udp-zivpn/releases/latest/download/udp-zivpn-linux-amd64"
 TMP_BIN="$(mktemp)"
 if ! curl -fsSL -o "$TMP_BIN" "$PRIMARY_URL"; then
-  echo -e "${Y}Primary URL မရ — latest ကို စမ်းပါတယ်...${Z}"
-  curl -fSL -o "$TMP_BIN" "$FALLBACK_URL"
+  say "${Y}Primary URL မရ — latest ကို စမ်းပါတယ်...${Z}"
+  if ! curl -fSL -o "$TMP_BIN" "$FALLBACK_URL"; then
+    say "${R}❌ ZIVPN Binary ဒေါင်းလုပ်ဆွဲ၍ မရပါ! Script ကို ရပ်လိုက်ပါမယ်။${Z}"
+    rm -f "$TMP_BIN"
+    exit 1
+  fi
 fi
 install -m 0755 "$TMP_BIN" "$BIN"
 rm -f "$TMP_BIN"
+say "${G}✅ ZIVPN Binary အောင်မြင်စွာ တပ်ဆင်ပြီးပါပြီ။${Z}"
 
 # ===== Enhanced Database Setup =====
 say "${Y}🗃️ Enhanced Database ဖန်တီးနေပါတယ်...${Z}"
@@ -153,6 +158,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 EOF
+say "${G}✅ Database ဖွဲ့စည်းမှု ပြီးပါပြီ။${Z}"
 
 # ===== Base config & Certs =====
 if [ ! -f "$CFG" ]; then
@@ -234,7 +240,7 @@ chmod 644 "$CFG" "$USERS"
 say "${Y}🌐 GitHub မှ Web Panel ဒေါင်းလုပ်ဆွဲနေပါတယ်...${Z}"
 curl -fsSL -o /etc/zivpn/web.py "https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/templates/web.py"
 if [ $? -ne 0 ]; then
-  echo -e "${R}❌ Web Panel ဒေါင်းလုပ်ဆွဲ၍မရပါ - Fallback သုံးပါမယ်${Z}"
+  echo -e "${R}❌ Web Panel ဒေါင်းလုပ်ဆွဲ၍မရပါ!${Z}"
   # Fallback web panel code would go here
 fi
 
@@ -242,7 +248,7 @@ fi
 say "${Y}🤖 GitHub မှ Telegram Bot ဒေါင်းလုပ်ဆွဲနေပါတယ်...${Z}"
 curl -fsSL -o /etc/zivpn/bot.py "https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/main/telegram/bot.py"
 if [ $? -ne 0 ]; then
-  echo -e "${R}❌ Telegram Bot ဒေါင်းလုပ်ဆွဲ၍မရပါ - Fallback သုံးပါမယ်${Z}"
+  echo -e "${R}❌ Telegram Bot ဒေါင်းလုပ်ဆွဲ၍မရပါ!${Z}"
   # Fallback bot code would go here
 fi
 
@@ -453,7 +459,7 @@ say "${Y}🔗 Connection Manager ထည့်သွင်းနေပါတယ�
 say "${Y}🔗 Connection Manager Script ကို GitHub မှ ဒေါင်းနေပါတယ်...${Z}"
 CONN_MGR_URL="https://raw.githubusercontent.com/nyeinkokoaung404/zi-panel/refs/heads/main/connection/connection_manager.py"
 if ! curl -fsSL -o "$CONN_MGR_PATH" "$CONN_MGR_URL"; then
-  echo -e "${R}❌ Connection Manager ဒေါင်းလုပ်ဆွဲ၍မရပါ — Fallback Logic ကို သုံးပါမယ်။${Z}"
+  echo -e "${R}❌ Connection Manager ဒေါင်းလုပ်ဆွဲ၍မရပါ!${Z}"
 fi
 
 # ===== systemd Services =====
@@ -621,6 +627,7 @@ IFACE=$(ip -4 route ls | awk '/default/ {print $5; exit}')
 [ -n "${IFACE:-}" ] || IFACE=eth0
 
 # DNAT Rules
+say "${C}  > IPTables NAT rules သတ်မှတ်ခြင်း...${Z}"
 iptables -t nat -F
 iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j DNAT --to-destination :5667
 iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
@@ -634,6 +641,8 @@ ufw allow 1:65535/udp >/dev/null 2>&1 || true
 # ufw allow 8080/tcp >/dev/null 2>&1 || true
 # ufw allow 8081/tcp >/dev/null 2>&1 || true
 ufw --force enable >/dev/null 2>&1 || true
+
+say "${G}✅ Firewall စည်းမျဉ်းများ အောင်မြင်စွာ သတ်မှတ်ပြီးပါပြီ။${Z}"
 
 # ===== Final Setup =====
 say "${Y}🔧 Final Configuration ပြုလုပ်နေပါတယ်...${Z}"
@@ -655,9 +664,17 @@ python3 /etc/zivpn/cleanup.py
 systemctl restart zivpn.service
 
 # ===== Completion Message =====
+say "${Y}🔎 Public IP ကို ရှာဖွေနေပါတယ်...${Z}"
+# Get Public IP, fallback to SERVER_IP if curl fails, and finally to local if both fail.
+PUBLIC_IP=$(curl -s --max-time 5 icanhazip.com || echo "$SERVER_IP")
+if [[ "$PUBLIC_IP" =~ ^10\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^192\.168\.|^127\. ]]; then
+    # Still looks like a private or loopback IP, default to hostname -I
+    PUBLIC_IP=$(hostname -I | awk '{print $1}')
+fi
+
 IP=$(hostname -I | awk '{print $1}')
 echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition Completed!${Z}"
-echo -e "${C}🌐 WEB PANEL:${Z} ${Y}http://$IP:8080${Z}"
+echo -e "${C}🌐 WEB PANEL:${Z} ${Y}http://$PUBLIC_IP:8080${Z}"
 # echo -e "  ${C}Login:${Z} ${Y}$WEB_USER / $WEB_PASS${Z}"
 echo -e "\n${G}🔐 LOGIN CREDENTIALS${Z}"
 echo -e "  ${Y}• Username:${Z} ${Y}$WEB_USER${Z}"
