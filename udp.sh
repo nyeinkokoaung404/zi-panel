@@ -546,6 +546,7 @@ cat >/etc/systemd/system/zivpn-connection.service <<'EOF'
 [Unit]
 Description=ZIVPN Connection Manager
 After=network.target zivpn.service
+Requires=zivpn.service
 
 [Service]
 Type=simple
@@ -554,6 +555,11 @@ WorkingDirectory=/etc/zivpn
 ExecStart=/usr/bin/python3 /etc/zivpn/connection_manager.py
 Restart=always
 RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Logging configuration
+LogRateLimitIntervalSec=0
 
 [Install]
 WantedBy=multi-user.target
