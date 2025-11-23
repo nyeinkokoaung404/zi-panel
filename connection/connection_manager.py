@@ -1,17 +1,31 @@
+# /etc/zivpn/connection_manager.py
+
 import sqlite3
 import subprocess
 import time
 import threading
 from datetime import datetime
 import os
+import logging
 
 # Configuration
 DATABASE_PATH = "/etc/zivpn/zivpn.db"
 LISTEN_FALLBACK = "5667"
 
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/var/log/zivpn/connection_manager.log'),
+        logging.StreamHandler()
+    ]
+)
+
 class ConnectionManager:
     def __init__(self):
         self.lock = threading.Lock()
+        self.logger = logging.getLogger(__name__)
 
     def get_db(self):
         conn = sqlite3.connect(DATABASE_PATH)
@@ -20,15 +34,13 @@ class ConnectionManager:
         
     def get_active_connections(self):
         """
-        conntrack ကိုသုံးပြီး 'src=IP' နှင့် 'dport=PORT' ပါသော UDP connections များကို ရယူသည်။
+        conntrack ကိုသုံးပြီး UDP connections များကို ရယူသည်။
+        Improved version for better accuracy
         """
         try:
-            # conntrack -L -p udp: UDP connections list ကို ပြသည်။
-            # grep -E 'dport=(...)' : ZIVPN ports များ (5667 or 6000-19999) ကို စစ်သည်။
-            result = subprocess.run(
-                "conntrack -L -p udp 2>/dev/null | grep -E 'dport=(5667|[6-9][0-9]{3}|[1-9][0-9]{4})'",
-                shell=True, capture_output=True, text=True
-            )
+            # More precise conntrack command
+            cmd = "conntrack -L -p udp 2>/dev/null | grep -E 'dport=(5667|[6-9][0-9]{3}|[1-9][0-9]{4})' | grep ESTABLISHED"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
             
             connections = {}
             for line in result.stdout.split('\n'):
@@ -45,21 +57,26 @@ class ConnectionManager:
                                 dport = part.split('=')[1]
                         
                         if src_ip and dport:
+                            # Group by source IP and port
                             key = f"{src_ip}:{dport}"
-                            if key not in connections:
-                                connections[key] = line 
-                    except:
+                            connections[key] = {
+                                'src_ip': src_ip,
+                                'dport': dport,
+                                'raw_line': line
+                            }
+                    except Exception as e:
+                        self.logger.debug(f"Error parsing line: {e}")
                         continue
             return connections
         except Exception as e:
-            print(f"Error fetching conntrack data: {e}")
+            self.logger.error(f"Error fetching conntrack data: {e}")
             return {}
             
     def enforce_connection_limits(self):
-        """Unique Source IP အရေအတွက်ကို စစ်ဆေးပြီး Max Connections ကို ထိန်းချုပ်သည်။"""
+        """User တစ်ယောက်ချင်းစီအတွက် connection limit ကို အတိအကျ စစ်ဆေးသည်။"""
         db = self.get_db()
         try:
-            # Get all active users with their connection limits
+            # Get all active users with their connection limits and ports
             users = db.execute('''
                 SELECT username, concurrent_conn, port 
                 FROM users 
@@ -67,59 +84,60 @@ class ConnectionManager:
             ''').fetchall()
             
             active_connections = self.get_active_connections()
+            self.logger.info(f"Found {len(active_connections)} active connections")
             
             for user in users:
                 username = user['username']
                 max_connections = user['concurrent_conn']
                 user_port = str(user['port'] or LISTEN_FALLBACK)
                 
-                # Dictionary to map unique IPs connected to this user's port
-                # Key: Source IP (Device), Value: List of full connection keys (IP:PORT)
-                connected_ips = {} 
-
-                # 1. Group connections by unique Source IP hitting the User's Port
-                for conn_key in active_connections:
-                    if conn_key.endswith(f":{user_port}"):
-                        ip = conn_key.split(':')[0]
-                        if ip not in connected_ips:
-                            connected_ips[ip] = []
-                        connected_ips[ip].append(conn_key)
+                self.logger.info(f"Checking user: {username}, Port: {user_port}, Max: {max_connections}")
                 
-                num_unique_ips = len(connected_ips)
-
-                # 2. Enforce the limit based on unique devices (Source IPs)
+                # Count connections for this user's port
+                user_connections = {}
+                for conn_key, conn_info in active_connections.items():
+                    if conn_info['dport'] == user_port:
+                        src_ip = conn_info['src_ip']
+                        if src_ip not in user_connections:
+                            user_connections[src_ip] = []
+                        user_connections[src_ip].append(conn_key)
+                
+                num_unique_ips = len(user_connections)
+                self.logger.info(f"User {username} has {num_unique_ips} unique IPs connected (max: {max_connections})")
+                
+                # Enforce the limit
                 if num_unique_ips > max_connections:
-                    print(f"Limit Exceeded for {username} (Port {user_port}). IPs found: {num_unique_ips}, Max: {max_connections}")
-
-                    # Determine which IPs to drop (Keep the first 'max_connections' found)
-                    ips_to_keep = list(connected_ips.keys())[:max_connections]
+                    self.logger.warning(f"Connection limit exceeded for {username}: {num_unique_ips} > {max_connections}")
                     
-                    for ip, conn_keys in connected_ips.items():
-                        if ip not in ips_to_keep:
-                            # This IP is an excess device. Drop ALL its connections.
-                            print(f"  Dropping excess device IP: {ip} for user {username}")
-                            for conn_key in conn_keys:
-                                self.drop_connection(conn_key)
+                    # Keep the oldest connections, drop the newest
+                    ips_to_keep = list(user_connections.keys())[:max_connections]
+                    ips_to_drop = list(user_connections.keys())[max_connections:]
+                    
+                    for ip in ips_to_drop:
+                        self.logger.info(f"Dropping connections for IP {ip} (user: {username})")
+                        for conn_key in user_connections[ip]:
+                            self.drop_connection_by_key(conn_key)
 
         except Exception as e:
-            print(f"An error occurred during connection limit enforcement: {e}")
-            
+            self.logger.error(f"Error in connection limit enforcement: {e}")
         finally:
             db.close()
             
-    def drop_connection(self, connection_key):
-        """Drop a specific connection using conntrack"""
+    def drop_connection_by_key(self, connection_key):
+        """Drop connection using connection key (IP:PORT)"""
         try:
-            # connection_key format: "IP:PORT"
             ip, port = connection_key.split(':')
-            # conntrack -D command ဖြင့် သက်ဆိုင်ရာ source IP နှင့် destination port ကို ဖြတ်ချသည်။
-            subprocess.run(
-                f"conntrack -D -p udp --dport {port} --src {ip}",
-                shell=True, capture_output=True, text=True
-            )
-            print(f"Dropped connection: {connection_key}")
+            # Use more specific conntrack deletion
+            cmd = f"conntrack -D -p udp --dport {port} --orig-src {ip}"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+            
+            if result.returncode == 0:
+                self.logger.info(f"Successfully dropped connection: {connection_key}")
+            else:
+                self.logger.warning(f"Failed to drop connection {connection_key}: {result.stderr}")
+                
         except Exception as e:
-            print(f"Error dropping connection {connection_key}: {e}")
+            self.logger.error(f"Error dropping connection {connection_key}: {e}")
             
     def start_monitoring(self):
         """Start the connection monitoring loop"""
@@ -127,9 +145,9 @@ class ConnectionManager:
             while True:
                 try:
                     self.enforce_connection_limits()
-                    time.sleep(10)  # 10 စက္ကန့်တိုင်း စစ်ဆေးသည်။
+                    time.sleep(15)  # Check every 15 seconds
                 except Exception as e:
-                    print(f"Monitoring loop failed: {e}")
+                    self.logger.error(f"Monitoring loop failed: {e}")
                     time.sleep(30)
                     
         monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
@@ -139,7 +157,7 @@ class ConnectionManager:
 connection_manager = ConnectionManager()
 
 if __name__ == "__main__":
-    print("Starting ZIVPN Connection Manager...")
+    print("Starting Enhanced ZIVPN Connection Manager...")
     connection_manager.start_monitoring()
     try:
         while True:
