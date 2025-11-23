@@ -599,7 +599,17 @@ def add_user():
     except Exception as e:
         return build_view(err=f"Error saving user: {e}")
 
-# /delete route ကို API call မှတဆင့် ကိုင်တွယ်ရန် ဖယ်ရှားထားပါသည်။
+@app.route("/delete", methods=["POST"])
+def delete_user_html():
+    t = g.t
+    if not require_login(): return redirect(url_for('login'))
+    user = (request.form.get("user") or "").strip()
+    if not user: return build_view(err=t['required_fields'])
+    
+    delete_user(user)
+    sync_config_passwords(mode="mirror")
+    return build_view(msg=t['deleted'].format(user=user))
+
 # /suspend, /activate ကိုလည်း API သို့ ပြောင်းလဲခြင်း မပြုပါ။
 @app.route("/suspend", methods=["POST"])
 def suspend_user():
