@@ -308,36 +308,47 @@ def get_listen_port_from_config():
     return (m.group(1) if m else LISTEN_FALLBACK)
 
 def has_recent_udp_activity(port):
-    """conntrack ကိုသုံးပြီး ပေးထားသော port တွင် connection ရှိမရှိ စစ်ဆေးသည်။"""
-    if not port:  return False
+    """ပိုမိုတိကျသော UDP activity စစ်ဆေးခြင်း"""
+    if not port:  
+        return False
+        
     try:
-        # Check if any connection entry exists for the specific dport
-        command = f"conntrack -L -p udp 2>/dev/null | grep -c 'dport={port}\\b'"
+        # More accurate conntrack check with timeout
+        command = [
+            'timeout', '5', 
+            'conntrack', '-L', '-p', 'udp', 
+            '--dport', str(port),
+            '--state', 'ESTABLISHED'
+        ]
         
         result = subprocess.run(
             command, 
-            shell=True, 
             capture_output=True, 
-            text=True, 
-            timeout=5 
+            text=True,
+            timeout=10
         )
         
-        # result.stdout should contain the count (e.g., '1', '5', '0')
-        count = int(result.stdout.strip() or '0')
-        return count > 0
+        # Count established connections for this port
+        lines = [line for line in result.stdout.split('\n') if 'ESTABLISHED' in line and f'dport={port}' in line]
+        return len(lines) > 0
 
+    except subprocess.TimeoutExpired:
+        print(f"Timeout checking port {port}")
+        return False
     except Exception as e:
         print(f"Error checking conntrack for port {port}: {e}")
-        # If any error occurs, default to Offline for safety
         return False
 
 def status_for_user(u, listen_port):
-    """အသုံးပြုသူ၏ အခြေအနေ (Online/Offline/Expired/Suspended) ကို တွက်ချက်သည်။"""
-    port=str(u.get("port",""))
-    check_port=port if port else listen_port
+    """အသုံးပြုသူ၏ အခြေအနေ ကို ပိုမိုတိကျစွာ တွက်ချက်သည်"""
+    port = str(u.get("port", ""))
+    check_port = port if port else listen_port
 
-    if u.get('status') == 'suspended': return "Suspended"
+    # First check if user is suspended
+    if u.get('status') == 'suspended': 
+        return "Suspended"
 
+    # Check expiry
     expires_str = u.get("expires", "")
     is_expired = False
     if expires_str:
@@ -348,12 +359,13 @@ def status_for_user(u, listen_port):
         except ValueError:
             pass
 
-    if is_expired: return "Expired"
+    if is_expired: 
+        return "Expired"
 
-    # Connection ရှိမရှိ စစ်ဆေးပြီး Online/Offline ပြသသည်။
-    if has_recent_udp_activity(check_port): return "Online"
+    # Check online status with improved accuracy
+    is_online = has_recent_udp_activity(check_port)
     
-    return "Offline"
+    return "Online" if is_online else "Offline"
 
 def sync_config_passwords(mode="mirror"):
     """Active User များ၏ Password များကို ZIVPN config file ထဲသို့ ထည့်သွင်းပြီး service ကို restart လုပ်သည်။"""
