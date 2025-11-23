@@ -1747,7 +1747,6 @@ input:checked + .slider .toggle-text.on {
 
 <script>
 // Parse Jinja translations for use in JS
-// FIX: Using JSON.parse with a safe, serialized JSON string to avoid Jinja/JS syntax conflicts.
 const translations = JSON.parse('{{translations_json_str|safe}}');
 let modalCallback = null; // Global variable to store callback function for confirmation
 
@@ -1766,7 +1765,7 @@ function showCustomModal(title, body, type, onConfirm) {
     if (type === 'confirm') {
         confirmBtn.style.display = 'inline-flex';
         confirmBtn.textContent = translations.execute;
-        cancelBtn.textContent = 'Cancel'; // Use literal 'Cancel' for consistency, or pull from t
+        cancelBtn.textContent = 'Cancel'; 
         modalCallback = onConfirm;
         confirmBtn.onclick = () => {
             closeModal('confirmOrAlertModal');
@@ -1813,7 +1812,7 @@ function showSection(sectionId) {
     }
 }
 
-// --- Settings Modal Functions ---
+// --- Settings Modal Functions (unchanged) ---
 function openSettings() {
     document.getElementById('settingsModal').classList.add('active');
     showSettingTab('theme');
@@ -1850,42 +1849,18 @@ function showSettingTab(tabName) {
     }
 }
 
-// --- Theme Functions ---
+// --- Theme Functions (unchanged) ---
 function toggleTheme(isChecked) {
     const theme = isChecked ? 'dark' : 'light';
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
 }
 
-// --- Language Functions ---
+// --- Language Functions (unchanged) ---
 function toggleLanguage(isChecked) {
     const lang = isChecked ? 'my' : 'en';
     window.location.href = '/set_lang?lang=' + lang;
 }
-
-// Initialize theme/nav from localStorage
-document.addEventListener('DOMContentLoaded', () => {
-    const storedTheme = localStorage.getItem('theme') || 'dark';
-    document.body.setAttribute('data-theme', storedTheme);
-    
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-        themeToggle.checked = (storedTheme === 'dark');
-    }
-    const langToggle = document.getElementById('langToggle');
-    if (langToggle) {
-        langToggle.checked = (document.documentElement.lang === 'my');
-    }
-
-    const activeSection = document.querySelector('.content-section.active');
-    if (activeSection) {
-          const sectionId = activeSection.id;
-          const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
-          if (navItem) {
-              navItem.classList.add('active');
-          }
-    }
-});
 
 // --- User Management Functions ---
 function filterUsers() {
@@ -1913,21 +1888,35 @@ function filterUsers() {
     });
 }
 
+// REFACTORED: Delete user using API call
 function deleteUser(username) {
     const message = translations.delete_confirm.replace('{user}', username);
     handleConfirm(message, () => {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/delete';
-        
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'user';
-        input.value = username;
-        
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
+        // Close the edit modal if deletion is initiated from there
+        closeModal('editUserModal');
+
+        const fetchUserApi = async () => {
+            try {
+                const response = await fetch('/api/user/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({user: username})
+                });
+                const data = await response.json();
+
+                if (data.ok) {
+                    handleAlert(data.message);
+                    // Reload the page to reflect the deletion visually
+                    location.reload(); 
+                } else {
+                    handleAlert('Error: ' + (data.message || 'Unknown API error.'));
+                }
+            } catch (e) {
+                handleAlert('Error communicating with server: ' + e.message);
+            }
+        };
+
+        fetchUserApi();
     });
 }
 
@@ -1946,6 +1935,7 @@ function closeEditModal() {
     closeModal('editUserModal');
 }
 
+// This function already uses the API and remains largely correct
 function submitEdit(event) {
     event.preventDefault();
     const user = document.getElementById('editOriginalUser').value;
@@ -1963,6 +1953,7 @@ function submitEdit(event) {
     }).then(r => r.json()).then(data => {
         handleAlert(data.message); 
         closeEditModal();
+        // Reload page to update visible user details
         location.reload();
     }).catch(e => {
         handleAlert('Error updating user: ' + e.message);
@@ -1972,7 +1963,7 @@ function submitEdit(event) {
     });
 }
 
-// --- Bulk Action Function ---
+// --- Bulk Action Function (unchanged) ---
 function executeBulkAction() {
     const action = document.getElementById('bulkAction').value;
     const users = document.getElementById('bulkUsers').value;
@@ -2008,7 +1999,7 @@ function executeBulkAction() {
     });
 }
 
-// --- Report Generation Function ---
+// --- Report Generation Function (unchanged) ---
 function generateReport() {
     const from = document.getElementById('fromDate').value;
     const to = document.getElementById('toDate').value;
@@ -2059,7 +2050,7 @@ document.getElementById('searchUser')?.addEventListener('input', function() {
     filterUsers();
 });
 
-// Add keyboard shortcuts
+// Add keyboard shortcuts (unchanged)
 document.addEventListener('keydown', function(e) {
     if (e.ctrlKey || e.metaKey) {
         switch(e.key) {
