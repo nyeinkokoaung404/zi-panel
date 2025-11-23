@@ -452,7 +452,7 @@ html,body{
 /* Stats Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: 1fr; 
+    grid-template-columns: 1fr 1fr; /* ENSURE 2 COLUMNS ON ALL MOBILE DEVICES */
     gap: 20px;
     margin: 20px 0;
 }
@@ -944,6 +944,13 @@ tr:hover {
     padding: 8px 0;
     border-bottom: 1px dotted var(--bd);
     color: var(--fg);
+    /* Make the clickable value look interactive */
+    cursor: pointer; 
+    transition: color 0.2s;
+}
+
+.user-detail-value:hover {
+    color: var(--primary-btn); /* Highlight on hover */
 }
 
 .user-detail-card > div:nth-last-child(-n+2) > span {
@@ -1155,6 +1162,7 @@ input:checked + .slider .toggle-text.on {
         flex: 1;
         color: var(--fg);
         font-size: 0.9em;
+        cursor: pointer; /* Make clickable on mobile card view */
     }
     
     .user-card-actions {
@@ -1470,15 +1478,15 @@ input:checked + .slider .toggle-text.on {
                         <div class="user-detail-card">
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-server"></i> {{t.vps_ip}}</span>
-                                <span class="user-detail-value">{{u.server_ip}}</span>
+                                <span class="user-detail-value" onclick="copyToClipboard('{{u.server_ip}}', '{{t.vps_ip}}')">{{u.server_ip}}</span>
                             </div>
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-lock"></i> {{t.password}}</span>
-                                <span class="user-detail-value">{{u.password}}</span>
+                                <span class="user-detail-value" onclick="copyToClipboard('{{u.password}}', '{{t.password}}')">{{u.password}}</span>
                             </div>
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-fingerprint"></i> {{t.hwid}}</span>
-                                <span class="user-detail-value">{{u.hwid or 'N/A'}}</span>
+                                <span class="user-detail-value" onclick="copyToClipboard('{{u.hwid or 'N/A'}}', '{{t.hwid}}')">{{u.hwid or 'N/A'}}</span>
                             </div>
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-clock"></i> {{t.day_left}}</span>
@@ -1494,7 +1502,7 @@ input:checked + .slider .toggle-text.on {
                             </div>
                             <div class="user-detail-row">
                                 <span class="user-detail-label"><i class="fas fa-tachometer-alt"></i> {{t.status}}</span>
-                                <span class="user-detail-value pill pill-{{u.status|lower}}" style="width: fit-content; justify-self: end;">{{u.status}}</span>
+                                <span class="user-detail-value pill pill-{{u.status|lower}}" style="width: fit-content; justify-self: end; cursor: default;">{{u.status}}</span>
                             </div>
                         </div>
                     </td>
@@ -1522,15 +1530,15 @@ input:checked + .slider .toggle-text.on {
                     <div class="user-detail-card">
                         <div class="user-detail-row">
                             <span class="user-detail-label">{{t.vps_ip}}</span>
-                            <span class="user-detail-value">{{u.server_ip}}</span>
+                            <span class="user-detail-value" onclick="copyToClipboard('{{u.server_ip}}', '{{t.vps_ip}}')">{{u.server_ip}}</span>
                         </div>
                         <div class="user-detail-row">
                             <span class="user-detail-label">{{t.password}}</span>
-                            <span class="user-detail-value">{{u.password}}</span>
+                            <span class="user-detail-value" onclick="copyToClipboard('{{u.password}}', '{{t.password}}')">{{u.password}}</span>
                         </div>
                         <div class="user-detail-row">
                             <span class="user-detail-label">{{t.hwid}}</span>
-                            <span class="user-detail-value">{{u.hwid or 'N/A'}}</span>
+                            <span class="user-detail-value" onclick="copyToClipboard('{{u.hwid or 'N/A'}}', '{{t.hwid}}')">{{u.hwid or 'N/A'}}</span>
                         </div>
                         <div class="user-detail-row">
                             <span class="user-detail-label">{{t.day_left}}</span>
@@ -1782,6 +1790,40 @@ input:checked + .slider .toggle-text.on {
 <script>
 // Parse Jinja translations for use in JS
 const translations = {{t|tojson}};
+
+// --- NEW: COPY TO CLIPBOARD FUNCTION ---
+function copyToClipboard(text, fieldName) {
+    if (!text || text === 'N/A' || text === '-') {
+        alert(fieldName + ' တန်ဖိုး မရှိပါ။');
+        return;
+    }
+    
+    // Create a temporary input element
+    const tempInput = document.createElement('input');
+    tempInput.value = text;
+    document.body.appendChild(tempInput);
+    
+    // Select and copy the text
+    tempInput.select();
+    tempInput.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            alert(fieldName + ': "' + text + '" ကို ကူးယူပြီးပါပြီ။');
+        } else {
+            // Fallback for older browsers
+            prompt("ကူးယူရန် Ctrl+C (သို့) Cmd+C ကိုနှိပ်ပါ:", text);
+        }
+    } catch (err) {
+        // Fallback if document.execCommand fails
+        prompt("ကူးယူရန် Ctrl+C (သို့) Cmd+C ကိုနှိပ်ပါ:", text);
+    }
+    
+    document.body.removeChild(tempInput);
+}
+// --- END COPY FUNCTION ---
+
 
 // Navigation Functions
 function showSection(sectionId) {
